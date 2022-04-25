@@ -40,10 +40,10 @@
 #define MOVEIT_GRASPS__GRASP_FILTER_
 
 // ROS
-#include <ros/ros.h>
-#include <tf_conversions/tf_eigen.h>
-#include <geometry_msgs/PoseArray.h>
-#include <geometry_msgs/PoseStamped.h>
+#include <rclcpp/rclcpp.hpp>
+#include <tf2_eigen/tf2_eigen.h>
+#include <geometry_msgs/msg/pose_array.h>
+#include <geometry_msgs/msg/pose_stamped.h>
 
 // Grasping
 #include <moveit_grasps/grasp_generator.h>
@@ -54,7 +54,7 @@
 
 // MoveIt
 #include <moveit/robot_state/robot_state.h>
-#include <moveit_msgs/Grasp.h>
+#include <moveit_msgs/msg/grasp.h>
 #include <moveit/kinematics_plugin_loader/kinematics_plugin_loader.h>
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 
@@ -110,14 +110,14 @@ struct IkThreadStruct
   IkThreadStruct(std::vector<GraspCandidatePtr>& grasp_candidates,  // the input
                  const planning_scene::PlanningScenePtr& planning_scene, Eigen::Isometry3d& link_transform,
                  std::size_t grasp_id, kinematics::KinematicsBaseConstPtr kin_solver,
-                 const robot_state::RobotStatePtr& robot_state, double timeout, bool filter_pregrasp, bool visual_debug,
-                 std::size_t thread_id, const std::string& grasp_target_object_id)
+                 const moveit::core::RobotStatePtr& robot_state, double timeout, bool filter_pregrasp,
+                 bool visual_debug, std::size_t thread_id, const std::string& grasp_target_object_id)
     : grasp_candidates_(grasp_candidates)
     , planning_scene_(planning_scene::PlanningScene::clone(planning_scene))
     , link_transform_(link_transform)
     , grasp_id(grasp_id)
     , kin_solver_(kin_solver)
-    , robot_state_(std::make_shared<robot_state::RobotState>(*robot_state))
+    , robot_state_(std::make_shared<moveit::core::RobotState>(*robot_state))
     , timeout_(timeout)
     , filter_pregrasp_(filter_pregrasp)
     , visual_debug_(visual_debug)
@@ -131,7 +131,7 @@ struct IkThreadStruct
   Eigen::Isometry3d link_transform_;
   std::size_t grasp_id;
   kinematics::KinematicsBaseConstPtr kin_solver_;
-  robot_state::RobotStatePtr robot_state_;
+  moveit::core::RobotStatePtr robot_state_;
   double timeout_;
   bool filter_pregrasp_;
   bool visual_debug_;
@@ -142,7 +142,7 @@ struct IkThreadStruct
   std::string grasp_target_object_id_;
 
   // Used within processing function
-  geometry_msgs::PoseStamped ik_pose_;  // Set from grasp candidate
+  geometry_msgs::msg::PoseStamped ik_pose_;  // Set from grasp candidate
   std::vector<double> ik_seed_state_;
 };
 typedef std::shared_ptr<IkThreadStruct> IkThreadStructPtr;
@@ -151,7 +151,7 @@ class GraspFilter
 {
 public:
   // Constructor
-  GraspFilter(const robot_state::RobotStatePtr& robot_state,
+  GraspFilter(rclcpp::Node::SharedPtr node, const moveit::core::RobotStatePtr& robot_state,
               const moveit_visual_tools::MoveItVisualToolsPtr& visual_tools);
 
   /**
@@ -164,12 +164,12 @@ public:
    */
   virtual bool filterGrasps(std::vector<GraspCandidatePtr>& grasp_candidates,
                             const planning_scene_monitor::PlanningSceneMonitorPtr& planning_scene_monitor,
-                            const robot_model::JointModelGroup* arm_jmg, const moveit::core::RobotStatePtr& seed_state,
+                            const moveit::core::JointModelGroup* arm_jmg, const moveit::core::RobotStatePtr& seed_state,
                             bool filter_pregrasp = false, const std::string& target_object_id = "");
 
   virtual bool filterGrasps(std::vector<GraspCandidatePtr>& grasp_candidates,
                             const planning_scene::PlanningScenePtr& planning_scene,
-                            const robot_model::JointModelGroup* arm_jmg, const moveit::core::RobotStatePtr& seed_state,
+                            const moveit::core::JointModelGroup* arm_jmg, const moveit::core::RobotStatePtr& seed_state,
                             bool filter_pregrasp = false, const std::string& target_object_id = "");
   /**
    * \brief Return grasps that are kinematically feasible
@@ -183,13 +183,13 @@ public:
    */
   virtual std::size_t filterGraspsHelper(std::vector<GraspCandidatePtr>& grasp_candidates,
                                          const planning_scene_monitor::PlanningSceneMonitorPtr& planning_scene_monitor,
-                                         const robot_model::JointModelGroup* arm_jmg,
+                                         const moveit::core::JointModelGroup* arm_jmg,
                                          const moveit::core::RobotStatePtr& seed_state, bool filter_pregrasp,
                                          bool visualize, const std::string& grasp_target_object_id = "");
 
   virtual std::size_t filterGraspsHelper(std::vector<GraspCandidatePtr>& grasp_candidates,
                                          const planning_scene::PlanningScenePtr& planning_scene,
-                                         const robot_model::JointModelGroup* arm_jmg,
+                                         const moveit::core::JointModelGroup* arm_jmg,
                                          const moveit::core::RobotStatePtr& seed_state, bool filter_pregrasp,
                                          bool visualize, const std::string& grasp_target_object_id = "");
 
@@ -344,10 +344,10 @@ protected:
   const std::string name_;
 
   // Allow a writeable robot state
-  robot_state::RobotStatePtr robot_state_;
+  moveit::core::RobotStatePtr robot_state_;
 
   // Keep a robot state for every thread
-  std::vector<robot_state::RobotStatePtr> robot_states_;
+  std::vector<moveit::core::RobotStatePtr> robot_states_;
 
   // Threaded kinematic solvers
   std::map<std::string, std::vector<kinematics::KinematicsBaseConstPtr> > kin_solvers_;
@@ -355,7 +355,7 @@ protected:
   // Class for publishing stuff to rviz
   moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
   // for rviz visualization of the planning scene
-  ros::Publisher planning_scene_publisher_;
+  rclcpp::Publisher<moveit_msgs::msg::PlanningScene>::SharedPtr planning_scene_publisher_;
 
   // Number of degrees of freedom for the IK solver to find
   std::size_t num_variables_;
@@ -375,7 +375,7 @@ protected:
   bool show_grasp_filter_collision_if_failed_;
 
   // Shared node handle
-  ros::NodeHandle nh_;
+  rclcpp::Node::SharedPtr nh_;
 
   // Cutting planes and orientation filter
   std::vector<CuttingPlanePtr> cutting_planes_;

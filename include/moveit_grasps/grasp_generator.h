@@ -40,16 +40,16 @@
 #define MOVEIT_GRASPS__GRASP_GENERATOR_H_
 
 // ROS
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 // TF
-#include <tf_conversions/tf_eigen.h>
+#include <tf2_eigen/tf2_eigen.h>
 
 // Msgs
-#include <geometry_msgs/PoseArray.h>
+#include <geometry_msgs/msg/pose_array.h>
 
 // MoveIt
-#include <moveit_msgs/Grasp.h>
+#include <moveit_msgs/msg/grasp.h>
 
 // geometric_shapes
 #include <geometric_shapes/shape_operations.h>
@@ -59,7 +59,6 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <Eigen/Eigenvalues>
-#include <eigen_conversions/eigen_msg.h>
 
 // Visualization
 #include <moveit_visual_tools/moveit_visual_tools.h>
@@ -102,7 +101,8 @@ public:
   /**
    * \brief Constructor
    */
-  GraspGenerator(const moveit_visual_tools::MoveItVisualToolsPtr& visual_tools, bool verbose = false);
+  GraspGenerator(rclcpp::Node::SharedPtr node, const moveit_visual_tools::MoveItVisualToolsPtr& visual_tools,
+                 bool verbose = false);
 
   /**
    * \brief Create possible grasp positions around a cuboid
@@ -124,7 +124,7 @@ public:
    * \param name of parent link
    * \return the approach direction
    */
-  static Eigen::Vector3d getPreGraspDirection(const moveit_msgs::Grasp& grasp, const std::string& ee_parent_link);
+  static Eigen::Vector3d getPreGraspDirection(const moveit_msgs::msg::Grasp& grasp, const std::string& ee_parent_link);
   //  static Eigen::Vector3d getPostGraspDirection(const moveit_msgs::Grasp &grasp, const std::string &ee_parent_link);
 
   /**
@@ -134,8 +134,8 @@ public:
    * \param name of parent link
    * \return pregrasp pose
    */
-  static geometry_msgs::PoseStamped getPreGraspPose(const GraspCandidatePtr& grasp_candidate,
-                                                    const std::string& ee_parent_link);
+  static geometry_msgs::msg::PoseStamped getPreGraspPose(const GraspCandidatePtr& grasp_candidate,
+                                                         const std::string& ee_parent_link);
   /**
    * \brief Compute the pre-grasp, grasp, lift and retreat poses for a grasp candidate
    * \param grasp_candidate - the grasp candidate
@@ -150,8 +150,8 @@ public:
    * \param arm - the planning group of the arm we want to display
    * \return true on success
    */
-  void publishGraspArrow(const geometry_msgs::Pose& grasp, const GraspDataPtr& grasp_data,
-                         const rviz_visual_tools::colors& color, double approach_length = 0.1);
+  void publishGraspArrow(const geometry_msgs::msg::Pose& grasp, const GraspDataPtr& grasp_data,
+                         const rviz_visual_tools::Colors& color, double approach_length = 0.1);
 
   /**
    * \brief Getter for Verbose
@@ -228,7 +228,7 @@ protected:
   double show_prefiltered_grasps_speed_;
 
   // Shared node handle
-  ros::NodeHandle nh_;
+  rclcpp::Node::SharedPtr nh_;
 
   // Transform from frame of box to global frame
   Eigen::Isometry3d object_global_transform_;

@@ -37,8 +37,8 @@
 */
 
 // ROS
-#include <ros/ros.h>
-#include <geometry_msgs/PoseArray.h>
+#include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/pose_array.h>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
@@ -56,7 +56,7 @@ class GraspGeneratorDemo
 {
 private:
   // A shared node handle
-  ros::NodeHandle nh_;
+  rclcpp::Node::SharedPtr nh_;
 
   // Grasp generator
   moveit_grasps::TwoFingerGraspGeneratorPtr grasp_generator_;
@@ -73,15 +73,18 @@ private:
 
 public:
   // Constructor
-  GraspGeneratorDemo(int num_tests) : nh_("~")
+  GraspGeneratorDemo(int num_tests)
   {
-    nh_.param("ee_group_name", ee_group_name_, std::string("hand"));
+    rclcpp::NodeOptions node_options;
+    node_options.automatically_declare_parameters_from_overrides(true);
+    nh_ = rclcpp::Node::make_shared("grasp_test", node_options);
+    nh_->get_parameter_or("ee_group_name", ee_group_name_, std::string("hand"));
 
-    ROS_INFO_STREAM_NAMED("demo", "End Effector: " << ee_group_name_);
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("demo"), "End Effector: " << ee_group_name_);
 
     // ---------------------------------------------------------------------------------------------
     // Load the Robot Viz Tools for publishing to Rviz
-    visual_tools_ = std::make_shared<moveit_visual_tools::MoveItVisualTools>("world");
+    visual_tools_ = std::make_shared<moveit_visual_tools::MoveItVisualTools>(nh_, "world");
     visual_tools_->setMarkerTopic("/rviz_visual_tools");
     visual_tools_->loadMarkerPub();
     visual_tools_->loadRobotStatePub("/display_robot_state");
@@ -95,8 +98,7 @@ public:
     visual_tools_->trigger();
 
     // TODO(davetcoleman): do we need two VisualTools? ideally consolidate
-    grasp_visuals_ = std::make_shared<rviz_visual_tools::RvizVisualTools>("world");
-    grasp_visuals_->setMarkerTopic("/grasp_visuals");
+    grasp_visuals_ = std::make_shared<rviz_visual_tools::RvizVisualTools>("world", "/grasp_visuals", nh_);
     grasp_visuals_->loadMarkerPub();
     grasp_visuals_->enableBatchPublishing();
     grasp_visuals_->deleteAllMarkers();
@@ -106,9 +108,10 @@ public:
     // Load grasp data specific to our robot
     grasp_data_ =
         std::make_shared<moveit_grasps::TwoFingerGraspData>(nh_, ee_group_name_, visual_tools_->getRobotModel());
+
     if (!grasp_data_->loadGraspData(nh_, ee_group_name_))
     {
-      ROS_ERROR_STREAM_NAMED(LOGNAME, "Failed to load Grasp Data parameters.");
+      RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOGNAME), "Failed to load Grasp Data parameters.");
       exit(-1);
     }
 
@@ -116,7 +119,7 @@ public:
 
     // ---------------------------------------------------------------------------------------------
     // Load grasp generator
-    grasp_generator_ = std::make_shared<moveit_grasps::TwoFingerGraspGenerator>(visual_tools_, true);
+    grasp_generator_ = std::make_shared<moveit_grasps::TwoFingerGraspGenerator>(nh_, visual_tools_, true);
     grasp_generator_->setVerbose(true);
 
     // ---------------------------------------------------------------------------------------------
@@ -164,17 +167,17 @@ public:
     // Animate open and closing end effector
     if (true)
     {
-      geometry_msgs::Pose pose = visual_tools_->getIdentityPose();
+      geometry_msgs::msg::Pose pose = visual_tools_->getIdentityPose();
       pose.position.x = .3;
 
       // Test visualization of end effector in OPEN position
-      ROS_INFO_STREAM_NAMED("demo", "Pre-grasp posture: (Orange)");
+      RCLCPP_INFO_STREAM(rclcpp::get_logger("demo"), "Pre-grasp posture: (Orange)");
       visual_tools_->publishEEMarkers(pose, ee_jmg, grasp_data_->pre_grasp_posture_.points[0].positions,
                                       rviz_visual_tools::ORANGE, "demo_eef");
       visual_tools_->publishText(pose, "Pre-Grasp Posture");
 
       // Test visualization of end effector in CLOSED position
-      ROS_INFO_STREAM_NAMED("demo", "Grasp posture (Green");
+      RCLCPP_INFO_STREAM(rclcpp::get_logger("demo"), "Grasp posture (Green");
       pose.position.z += 0.15;
       visual_tools_->publishEEMarkers(pose, ee_jmg, grasp_data_->grasp_posture_.points[0].positions,
                                       rviz_visual_tools::GREEN, "demo_eef");
@@ -184,7 +187,7 @@ public:
 
     // ---------------------------------------------------------------------------------------------
     // Generate grasps for a bunch of random objects
-    geometry_msgs::Pose object_pose;
+    geometry_msgs::msg::Pose object_pose;
     std::vector<moveit_grasps::GraspCandidatePtr> possible_grasps;
 
     // Configure the desired types of grasps
@@ -199,9 +202,9 @@ public:
 
     // Loop
     int i = 0;
-    while (ros::ok())
+    while (rclcpp::ok())
     {
-      ROS_INFO_STREAM_NAMED("demo", "Adding random posed object " << i + 1 << " of " << num_tests);
+      RCLCPP_INFO_STREAM(rclcpp::get_logger("demo"), "Adding random posed object " << i + 1 << " of " << num_tests);
 
       // Remove randomness when we are only running one test
       if (num_tests == 1)
@@ -237,10 +240,10 @@ public:
     }
   }
 
-  void generateTestObject(geometry_msgs::Pose& object_pose)
+  void generateTestObject(geometry_msgs::msg::Pose& object_pose)
   {
     // Position
-    geometry_msgs::Pose start_object_pose;
+    geometry_msgs::msg::Pose start_object_pose;
 
     start_object_pose.position.x = 0.5;
     start_object_pose.position.y = 0.0;
@@ -259,7 +262,7 @@ public:
     // visual_tools_->publishObject( object_pose, OBJECT_SIZE, true );
   }
 
-  void generateRandomObject(geometry_msgs::Pose& object_pose)
+  void generateRandomObject(geometry_msgs::msg::Pose& object_pose)
   {
     // Position
     object_pose.position.x = fRand(0.1, 0.9);  // 0.55);
@@ -288,26 +291,30 @@ public:
 int main(int argc, char* argv[])
 {
   int num_tests = 10;
-  ros::init(argc, argv, "grasp_generator_demo");
+  rclcpp::init(argc, argv);
+  rclcpp::NodeOptions node_options;
+  node_options.automatically_declare_parameters_from_overrides(true);
+  auto grasp_generator_demo_node = rclcpp::Node::make_shared("grasp_generator_demo", node_options);
 
-  ROS_INFO_STREAM_NAMED("main", "GraspGenerator Demo");
+  RCLCPP_INFO_STREAM(rclcpp::get_logger("main"), "GraspGenerator Demo");
 
-  ros::AsyncSpinner spinner(2);
-  spinner.start();
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(grasp_generator_demo_node);
+  std::thread([&executor]() { executor.spin(); }).detach();
 
   // Seed random
-  srand(ros::Time::now().toSec());
+  srand(grasp_generator_demo_node->get_clock()->now().seconds());
 
   // Benchmark time
-  ros::Time start_time;
-  start_time = ros::Time::now();
+  rclcpp::Time start_time;
+  start_time = grasp_generator_demo_node->get_clock()->now();
 
   // Run Demos
   moveit_grasps_demo::GraspGeneratorDemo tester(num_tests);
 
   // Benchmark time
-  double duration = (ros::Time::now() - start_time).toNSec() * 1e-6;
-  ROS_INFO_STREAM_NAMED("", "Total time: " << duration);
+  double duration = (grasp_generator_demo_node->get_clock()->now() - start_time).nanoseconds() * 1e-6;
+  RCLCPP_INFO_STREAM(rclcpp::get_logger(""), "Total time: " << duration);
 
   return 0;
 }

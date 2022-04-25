@@ -1,0 +1,9 @@
+repositories:
+  moveit_visual_tools:
+    type: git
+    url: git@github.com:ros-planning/moveit_visual_tools.git
+    version: foxy
+  rosparam_shortcuts:
+    type: git
+    url: git@github.com:PickNikRobotics/rosparam_shortcuts.git
+    version: foxy

@@ -54,16 +54,17 @@ double GraspScoreWeights::computeScore(const Eigen::Vector3d& orientation_scores
   if (verbose)
   {
     static const std::string logger_name = "grasp_scorer.compute_score";
-    ROS_DEBUG_STREAM_NAMED(logger_name, "Grasp score: ");
+    rclcpp::Logger LOGGER = rclcpp::get_logger(logger_name);
+    RCLCPP_DEBUG_STREAM(LOGGER, "Grasp score: ");
     // clang-format off
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\torientation_score.x = " << orientation_scores[0] << "\tweight = "<< orientation_x_score_weight_);
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\torientation_score.y = " << orientation_scores[1] << "\tweight = "<< orientation_y_score_weight_);
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\torientation_score.z = " << orientation_scores[2] << "\tweight = "<< orientation_z_score_weight_);
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\ttranslation_score.x = " << translation_scores[0] << "\tweight = "<< translation_x_score_weight_);
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\ttranslation_score.y = " << translation_scores[1] << "\tweight = "<< translation_y_score_weight_);
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\ttranslation_score.z = " << translation_scores[2] << "\tweight = "<< translation_z_score_weight_);
+    RCLCPP_DEBUG_STREAM(LOGGER, "\torientation_score.x = " << orientation_scores[0] << "\tweight = "<< orientation_x_score_weight_);
+    RCLCPP_DEBUG_STREAM(LOGGER, "\torientation_score.y = " << orientation_scores[1] << "\tweight = "<< orientation_y_score_weight_);
+    RCLCPP_DEBUG_STREAM(LOGGER, "\torientation_score.z = " << orientation_scores[2] << "\tweight = "<< orientation_z_score_weight_);
+    RCLCPP_DEBUG_STREAM(LOGGER, "\ttranslation_score.x = " << translation_scores[0] << "\tweight = "<< translation_x_score_weight_);
+    RCLCPP_DEBUG_STREAM(LOGGER, "\ttranslation_score.y = " << translation_scores[1] << "\tweight = "<< translation_y_score_weight_);
+    RCLCPP_DEBUG_STREAM(LOGGER, "\ttranslation_score.z = " << translation_scores[2] << "\tweight = "<< translation_z_score_weight_);
     // Total
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\ttotal_score = " << total_score);
+    RCLCPP_DEBUG_STREAM(LOGGER, "\ttotal_score = " << total_score);
     // clang-format on
   }
   return total_score;
@@ -89,7 +90,7 @@ Eigen::Vector3d GraspScorer::scoreRotationsFromDesired(const Eigen::Isometry3d& 
   ideal_pose_axis = ideal_pose.rotation() * Eigen::Vector3d::UnitX();
   cos_angle = grasp_pose_axis.dot(ideal_pose_axis);
   angle = acos(std::max(-1.0, std::min(1.0, cos_angle)));
-  ROS_DEBUG_STREAM_NAMED("grasp_scorer.angle", "x angle = " << angle * 180.0 / M_PI);
+  RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_scorer.angle"), "x angle = " << angle * 180.0 / M_PI);
   scores[0] = (M_PI - angle) / M_PI;
 
   // get angle between y-axes
@@ -97,7 +98,7 @@ Eigen::Vector3d GraspScorer::scoreRotationsFromDesired(const Eigen::Isometry3d& 
   ideal_pose_axis = ideal_pose.rotation() * Eigen::Vector3d::UnitY();
   cos_angle = grasp_pose_axis.dot(ideal_pose_axis);
   angle = acos(std::max(-1.0, std::min(1.0, cos_angle)));
-  ROS_DEBUG_STREAM_NAMED("grasp_scorer.angle", "y angle = " << angle * 180.0 / M_PI);
+  RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_scorer.angle"), "y angle = " << angle * 180.0 / M_PI);
   scores[1] = (M_PI - angle) / M_PI;
 
   // get angle between z-axes
@@ -105,7 +106,7 @@ Eigen::Vector3d GraspScorer::scoreRotationsFromDesired(const Eigen::Isometry3d& 
   ideal_pose_axis = ideal_pose.rotation() * Eigen::Vector3d::UnitZ();
   cos_angle = grasp_pose_axis.dot(ideal_pose_axis);
   angle = acos(std::max(-1.0, std::min(1.0, cos_angle)));
-  ROS_DEBUG_STREAM_NAMED("grasp_scorer.angle", "z angle = " << angle * 180.0 / M_PI);
+  RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_scorer.angle"), "z angle = " << angle * 180.0 / M_PI);
   scores[2] = (M_PI - angle) / M_PI;
 
   return scores;
@@ -117,14 +118,14 @@ Eigen::Vector3d GraspScorer::scoreGraspTranslation(const Eigen::Isometry3d& gras
   // We assume that the ideal is in the middle
   Eigen::Vector3d scores = -Eigen::Vector3d(grasp_pose_tcp.translation() - ideal_pose.translation()).array().abs();
 
-  ROS_DEBUG_STREAM_NAMED("grasp_scorer.scoreGraspTranslation",
-                         "value, ideal, score:\n"
-                             << "x: " << grasp_pose_tcp.translation()[0] << "\t" << ideal_pose.translation()[0] << "\t"
-                             << scores[0] << "\n"
-                             << "y: " << grasp_pose_tcp.translation()[1] << "\t" << ideal_pose.translation()[1] << "\t"
-                             << scores[1] << "\n"
-                             << "x: " << grasp_pose_tcp.translation()[2] << "\t" << ideal_pose.translation()[2] << "\t"
-                             << scores[2] << "\n");
+  RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_scorer.scoreGraspTranslation"),
+                      "value, ideal, score:\n"
+                          << "x: " << grasp_pose_tcp.translation()[0] << "\t" << ideal_pose.translation()[0] << "\t"
+                          << scores[0] << "\n"
+                          << "y: " << grasp_pose_tcp.translation()[1] << "\t" << ideal_pose.translation()[1] << "\t"
+                          << scores[1] << "\n"
+                          << "x: " << grasp_pose_tcp.translation()[2] << "\t" << ideal_pose.translation()[2] << "\t"
+                          << scores[2] << "\n");
 
   return scores;
 }
@@ -150,14 +151,14 @@ Eigen::Vector3d GraspScorer::scoreGraspTranslation(const Eigen::Isometry3d& gras
     scores[i] = pow(score, 2);
   }
 
-  ROS_DEBUG_STREAM_NAMED("grasp_scorer.translation",
-                         "\nvalue, min, max, score:\n"
-                             << grasp_pose_tcp.translation()[0] << ", " << min_translations[0] << ", "
-                             << max_translations[0] << ", " << scores[0] << "\n"
-                             << grasp_pose_tcp.translation()[1] << ", " << min_translations[1] << ", "
-                             << max_translations[1] << ", " << scores[1] << "\n"
-                             << grasp_pose_tcp.translation()[2] << ", " << min_translations[2] << ", "
-                             << max_translations[2] << ", " << scores[2] << "\n");
+  RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_scorer.translation"),
+                      "\nvalue, min, max, score:\n"
+                          << grasp_pose_tcp.translation()[0] << ", " << min_translations[0] << ", "
+                          << max_translations[0] << ", " << scores[0] << "\n"
+                          << grasp_pose_tcp.translation()[1] << ", " << min_translations[1] << ", "
+                          << max_translations[1] << ", " << scores[1] << "\n"
+                          << grasp_pose_tcp.translation()[2] << ", " << min_translations[2] << ", "
+                          << max_translations[2] << ", " << scores[2] << "\n");
 
   return scores;
 }

@@ -33,12 +33,14 @@
  *********************************************************************/
 
 /* Author: Dave Coleman <dave@picknik.ai>, Andy McEvoy
-   Desc:   Generates geometric grasps for cuboids and blocks, not using physics or contact wrenches
+   Desc:   Generates geometric grasps for cuboids and blocks, not using physics
+   or contact wrenches
 */
 
-#include <moveit_grasps/grasp_generator.h>
 #include <moveit_grasps/grasp_filter.h>
+#include <moveit_grasps/grasp_generator.h>
 
+#include <rcpputils/asserts.hpp>
 #include <rosparam_shortcuts/rosparam_shortcuts.h>
 
 namespace
@@ -46,11 +48,12 @@ namespace
 void debugFailedOpenGripper(double percent_open, double min_finger_open_on_approach, double object_width,
                             double grasp_padding_on_approach)
 {
-  ROS_ERROR_STREAM_NAMED("grasp_generator", "Unable to set grasp width to "
-                                                << percent_open << " % open. Stats:"
-                                                << "\n min_finger_open_on_approach: \t " << min_finger_open_on_approach
-                                                << "\n object_width: \t " << object_width
-                                                << "\n grasp_padding_on_approach_: \t " << grasp_padding_on_approach);
+  RCLCPP_ERROR_STREAM(rclcpp::get_logger("grasp_generator"),
+                      "Unable to set grasp width to " << percent_open << " % open. Stats:"
+                                                      << "\n min_finger_open_on_approach: \t "
+                                                      << min_finger_open_on_approach << "\n object_width: \t "
+                                                      << object_width << "\n grasp_padding_on_approach_: \t "
+                                                      << grasp_padding_on_approach);
 }
 
 }  // namespace
@@ -59,31 +62,35 @@ namespace moveit_grasps
 
 {
 // Constructor
-GraspGenerator::GraspGenerator(const moveit_visual_tools::MoveItVisualToolsPtr& visual_tools, bool verbose)
+GraspGenerator::GraspGenerator(rclcpp::Node::SharedPtr node,
+                               const moveit_visual_tools::MoveItVisualToolsPtr& visual_tools, bool verbose)
   : ideal_grasp_pose_(Eigen::Isometry3d::Identity())
   , visual_tools_(visual_tools)
   , verbose_(verbose)
-  , nh_("~/moveit_grasps/generator")
+  , nh_(rclcpp::Node::make_shared("moveit_grasps_generator", node->get_namespace()))
   , grasp_score_weights_(std::make_shared<GraspScoreWeights>())
 {
   // Load visulization settings
   const std::string parent_name = "grasps";  // for namespacing logging messages
   std::size_t error = 0;
 
-  error += !rosparam_shortcuts::get(parent_name, nh_, "verbose", verbose_);
-  error += !rosparam_shortcuts::get(parent_name, nh_, "show_prefiltered_grasps", show_prefiltered_grasps_);
-  error += !rosparam_shortcuts::get(parent_name, nh_, "show_prefiltered_grasps_speed", show_prefiltered_grasps_speed_);
+  error += !rosparam_shortcuts::get(nh_, "moveit_grasps.generator.verbose", verbose_);
+  error += !rosparam_shortcuts::get(nh_, "moveit_grasps.generator.show_prefiltered_grasps", show_prefiltered_grasps_);
+  error += !rosparam_shortcuts::get(nh_, "moveit_grasps.generator.show_prefiltered_grasps_speed",
+                                    show_prefiltered_grasps_speed_);
 
   // Load scoring weights
-  rosparam_shortcuts::shutdownIfError(parent_name, error);
+  rosparam_shortcuts::shutdownIfError(error);
 }
 
 void GraspGenerator::setIdealTCPGraspPoseRPY(const std::vector<double>& ideal_grasp_orientation_rpy)
 {
-  ROS_ASSERT_MSG(ideal_grasp_orientation_rpy.size() == 3, "setIdealTCPGraspPoseRPY must be set with a vector of length "
-                                                          "3");
+  rcpputils::assert_true(ideal_grasp_orientation_rpy.size() == 3,
+                         "setIdealTCPGraspPoseRPY must be set with a vector of length "
+                         "3");
 
-  // copy the ideal_grasp_pose.translation() so that we only change the orientation.
+  // copy the ideal_grasp_pose.translation() so that we only change the
+  // orientation.
   Eigen::Vector3d ideal_grasp_pose_translation(ideal_grasp_pose_.translation());
 
   // Set ideal grasp pose (currently only uses orientation of pose)
@@ -95,32 +102,35 @@ void GraspGenerator::setIdealTCPGraspPoseRPY(const std::vector<double>& ideal_gr
   ideal_grasp_pose_.translation() = ideal_grasp_pose_translation;
 }
 
-Eigen::Vector3d GraspGenerator::getPreGraspDirection(const moveit_msgs::Grasp& grasp, const std::string& ee_parent_link)
+Eigen::Vector3d GraspGenerator::getPreGraspDirection(const moveit_msgs::msg::Grasp& grasp,
+                                                     const std::string& ee_parent_link)
 {
   // Grasp Pose Variables
   Eigen::Isometry3d grasp_pose_eef_mount_eigen;
-  tf::poseMsgToEigen(grasp.grasp_pose.pose, grasp_pose_eef_mount_eigen);
+  Eigen::fromMsg(grasp.grasp_pose.pose, grasp_pose_eef_mount_eigen);
 
   // The direction of the pre-grasp in the frame of the parent link
   Eigen::Vector3d pre_grasp_approach_direction =
       Eigen::Vector3d(grasp.pre_grasp_approach.direction.vector.x, grasp.pre_grasp_approach.direction.vector.y,
                       grasp.pre_grasp_approach.direction.vector.z);
 
-  // Decide if we need to change the approach_direction to the local frame of the end effector orientation
+  // Decide if we need to change the approach_direction to the local frame of
+  // the end effector orientation
   if (grasp.pre_grasp_approach.direction.header.frame_id == ee_parent_link)
   {
-    // Apply/compute the approach_direction vector in the local frame of the grasp_pose orientation
+    // Apply/compute the approach_direction vector in the local frame of the
+    // grasp_pose orientation
     return grasp_pose_eef_mount_eigen.rotation() * pre_grasp_approach_direction;
   }
   return pre_grasp_approach_direction;
 }
 
-geometry_msgs::PoseStamped GraspGenerator::getPreGraspPose(const GraspCandidatePtr& grasp_candidate,
-                                                           const std::string& ee_parent_link)
+geometry_msgs::msg::PoseStamped GraspGenerator::getPreGraspPose(const GraspCandidatePtr& grasp_candidate,
+                                                                const std::string& ee_parent_link)
 {
   // Grasp Pose Variables
   Eigen::Isometry3d grasp_pose_eef_mount_eigen;
-  tf::poseMsgToEigen(grasp_candidate->grasp_.grasp_pose.pose, grasp_pose_eef_mount_eigen);
+  Eigen::fromMsg(grasp_candidate->grasp_.grasp_pose.pose, grasp_pose_eef_mount_eigen);
 
   // Get pre-grasp pose first
   Eigen::Isometry3d pre_grasp_pose_eef_mount_eigen =
@@ -134,8 +144,8 @@ geometry_msgs::PoseStamped GraspGenerator::getPreGraspPose(const GraspCandidateP
       pre_grasp_approach_direction_local * grasp_candidate->grasp_.pre_grasp_approach.desired_distance;
 
   // Convert eigen pre-grasp position back to regular message
-  geometry_msgs::PoseStamped pre_grasp_pose_eef_mount_msg;
-  tf::poseEigenToMsg(pre_grasp_pose_eef_mount_eigen, pre_grasp_pose_eef_mount_msg.pose);
+  geometry_msgs::msg::PoseStamped pre_grasp_pose_eef_mount_msg;
+  pre_grasp_pose_eef_mount_msg.pose = Eigen::toMsg(pre_grasp_pose_eef_mount_eigen);
 
   // Copy original header to new grasp
   pre_grasp_pose_eef_mount_msg.header = grasp_candidate->grasp_.grasp_pose.header;
@@ -147,14 +157,14 @@ void GraspGenerator::getGraspWaypoints(const GraspCandidatePtr& grasp_candidate,
                                        EigenSTL::vector_Isometry3d& grasp_waypoints)
 {
   Eigen::Isometry3d grasp_pose;
-  tf::poseMsgToEigen(grasp_candidate->grasp_.grasp_pose.pose, grasp_pose);
+  Eigen::fromMsg(grasp_candidate->grasp_.grasp_pose.pose, grasp_pose);
 
-  const geometry_msgs::PoseStamped pregrasp_pose_msg =
+  const geometry_msgs::msg::PoseStamped pregrasp_pose_msg =
       GraspGenerator::getPreGraspPose(grasp_candidate, grasp_candidate->grasp_data_->parent_link_->getName());
 
   // Create waypoints
   Eigen::Isometry3d pregrasp_pose;
-  tf::poseMsgToEigen(pregrasp_pose_msg.pose, pregrasp_pose);
+  Eigen::fromMsg(pregrasp_pose_msg.pose, pregrasp_pose);
 
   Eigen::Isometry3d lifted_grasp_pose = grasp_pose;
   lifted_grasp_pose.translation().z() += grasp_candidate->grasp_data_->lift_distance_desired_;
@@ -177,8 +187,8 @@ void GraspGenerator::getGraspWaypoints(const GraspCandidatePtr& grasp_candidate,
   grasp_waypoints[3] = retreat_pose;
 }
 
-void GraspGenerator::publishGraspArrow(const geometry_msgs::Pose& grasp, const GraspDataPtr& grasp_data,
-                                       const rviz_visual_tools::colors& color, double approach_length)
+void GraspGenerator::publishGraspArrow(const geometry_msgs::msg::Pose& grasp, const GraspDataPtr& grasp_data,
+                                       const rviz_visual_tools::Colors& color, double approach_length)
 {
   visual_tools_->publishArrow(grasp, color, rviz_visual_tools::MEDIUM);
 }
@@ -187,7 +197,7 @@ bool GraspGenerator::visualizeAnimatedGrasps(const std::vector<GraspCandidatePtr
                                              const moveit::core::JointModelGroup* ee_jmg, double animation_speed)
 {
   // Convert the grasp_candidates into a format moveit_visual_tools can use
-  std::vector<moveit_msgs::Grasp> grasps;
+  std::vector<moveit_msgs::msg::Grasp> grasps;
   for (std::size_t i = 0; i < grasp_candidates.size(); ++i)
   {
     grasps.push_back(grasp_candidates[i]->grasp_);

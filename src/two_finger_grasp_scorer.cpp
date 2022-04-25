@@ -54,18 +54,19 @@ double TwoFingerGraspScoreWeights::computeScore(const Eigen::Vector3d& orientati
   if (verbose)
   {
     static const std::string logger_name = "grasp_scorer.compute_score";
+    static const rclcpp::Logger LOGGER = rclcpp::get_logger(logger_name);
     // clang-format off
-    ROS_DEBUG_STREAM_NAMED(logger_name, "Two Finger Grasp score: ");
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\torientation_score.x = " << orientation_scores[0] << "\tweight = "<< orientation_x_score_weight_);
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\torientation_score.y = " << orientation_scores[1] << "\tweight = "<< orientation_y_score_weight_);
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\torientation_score.z = " << orientation_scores[2] << "\tweight = "<< orientation_z_score_weight_);
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\ttranslation_score.x = " << translation_scores[0] << "\tweight = "<< translation_x_score_weight_);
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\ttranslation_score.y = " << translation_scores[1] << "\tweight = "<< translation_y_score_weight_);
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\ttranslation_score.z = " << translation_scores[2] << "\tweight = "<< translation_z_score_weight_);
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\tdepth_score         = " << depth_score           << "\tweight = "<< depth_score_weight_);
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\twidth_score         = " << width_score           << "\tweight = "<< width_score_weight_);
+    RCLCPP_DEBUG_STREAM(LOGGER, "Two Finger Grasp score: ");
+    RCLCPP_DEBUG_STREAM(LOGGER, "\torientation_score.x = " << orientation_scores[0] << "\tweight = "<< orientation_x_score_weight_);
+    RCLCPP_DEBUG_STREAM(LOGGER, "\torientation_score.y = " << orientation_scores[1] << "\tweight = "<< orientation_y_score_weight_);
+    RCLCPP_DEBUG_STREAM(LOGGER, "\torientation_score.z = " << orientation_scores[2] << "\tweight = "<< orientation_z_score_weight_);
+    RCLCPP_DEBUG_STREAM(LOGGER, "\ttranslation_score.x = " << translation_scores[0] << "\tweight = "<< translation_x_score_weight_);
+    RCLCPP_DEBUG_STREAM(LOGGER, "\ttranslation_score.y = " << translation_scores[1] << "\tweight = "<< translation_y_score_weight_);
+    RCLCPP_DEBUG_STREAM(LOGGER, "\ttranslation_score.z = " << translation_scores[2] << "\tweight = "<< translation_z_score_weight_);
+    RCLCPP_DEBUG_STREAM(LOGGER, "\tdepth_score         = " << depth_score           << "\tweight = "<< depth_score_weight_);
+    RCLCPP_DEBUG_STREAM(LOGGER, "\twidth_score         = " << width_score           << "\tweight = "<< width_score_weight_);
     // Total
-    ROS_DEBUG_STREAM_NAMED(logger_name, "\ttotal_score = " << total_score);
+    RCLCPP_DEBUG_STREAM(LOGGER, "\ttotal_score = " << total_score);
     // clang-format on
   }
   return total_score;
@@ -78,7 +79,7 @@ double TwoFingerGraspScoreWeights::getWeightTotal() const
 
 double TwoFingerGraspScorer::scoreGraspWidth(const TwoFingerGraspDataPtr& grasp_data, double percent_open)
 {
-  ROS_DEBUG_STREAM_NAMED("grasp_scorer.graspWidth", "raw score = " << percent_open);
+  RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_scorer.graspWidth"), "raw score = " << percent_open);
   return pow(percent_open, 2);
 }
 
@@ -87,15 +88,15 @@ double TwoFingerGraspScorer::scoreDistanceToPalm(const Eigen::Isometry3d& grasp_
                                                  const Eigen::Isometry3d& object_pose, double min_grasp_distance,
                                                  double max_grasp_distance)
 {
+  static const rclcpp::Logger LOGGER = rclcpp::get_logger("grasp_scorer.distance");
   double distance = (grasp_pose_tcp.translation() - object_pose.translation()).norm();
-  ROS_DEBUG_STREAM_NAMED("grasp_scorer.distance",
-                         "distance = " << distance << ", " << min_grasp_distance << ":" << max_grasp_distance);
+  RCLCPP_DEBUG_STREAM(LOGGER, "distance = " << distance << ", " << min_grasp_distance << ":" << max_grasp_distance);
 
   double score = 1.0 - (distance - min_grasp_distance) / (max_grasp_distance - min_grasp_distance);
 
-  ROS_DEBUG_STREAM_NAMED("grasp_scorer.distance", "raw score = " << score);
+  RCLCPP_DEBUG_STREAM(LOGGER, "raw score = " << score);
   if (score < 0)
-    ROS_WARN_STREAM_NAMED("grasp_scorer.distance", "score < 0!");
+    RCLCPP_WARN_STREAM(LOGGER, "score < 0!");
   return pow(score, 4);
 }
 

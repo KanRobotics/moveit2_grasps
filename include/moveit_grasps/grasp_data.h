@@ -41,11 +41,11 @@
 #define MOVEIT_GRASPS__GRASP_DATA_H_
 
 // Ros
-#include <ros/node_handle.h>
+#include <rclcpp/rclcpp.hpp>
 
 // Msgs
-#include <geometry_msgs/Pose.h>
-#include <trajectory_msgs/JointTrajectory.h>
+#include <geometry_msgs/msg/pose.h>
+#include <trajectory_msgs/msg/joint_trajectory.h>
 
 // MoveIt
 #include <moveit/macros/class_forward.h>
@@ -60,7 +60,7 @@ namespace moveit_grasps
 MOVEIT_CLASS_FORWARD(GraspData);
 
 // Map various arms to end effector grasp datas
-typedef std::map<const robot_model::JointModelGroup*, moveit_grasps::GraspDataPtr> GraspDatas;
+typedef std::map<const moveit::core::JointModelGroup*, moveit_grasps::GraspDataPtr> GraspDatas;
 
 struct GraspData
 {
@@ -70,28 +70,28 @@ struct GraspData
    * \param node handle - allows for namespacing
    * \param end effector name - which side of a two handed robot to load data for. should correspond to SRDF EE names
    */
-  GraspData(const ros::NodeHandle& nh, const std::string& end_effector,
+  GraspData(const rclcpp::Node::SharedPtr nh, const std::string& end_effector,
             const moveit::core::RobotModelConstPtr& robot_model);
 
   /**
    * \brief Helper function for constructor
    * \return true on success
    */
-  virtual bool loadGraspData(const ros::NodeHandle& nh, const std::string& end_effector);
+  virtual bool loadGraspData(const rclcpp::Node::SharedPtr nh, const std::string& end_effector);
 
   /**
    * \brief Alter a robot state so that the end effector corresponding to this grasp data is in pre-grasp state (OPEN)
    * \param joint state of robot
    * \return true on success
    */
-  bool setRobotStatePreGrasp(robot_state::RobotStatePtr& robot_state);
+  bool setRobotStatePreGrasp(moveit::core::RobotStatePtr& robot_state);
 
   /**
    * \brief Alter a robot state so that the end effector corresponding to this grasp data is in grasp state (CLOSED)
    * \param joint state of robot
    * \return true on success
    */
-  bool setRobotStateGrasp(robot_state::RobotStatePtr& robot_state);
+  bool setRobotStateGrasp(moveit::core::RobotStatePtr& robot_state);
 
   /**
    * \brief Alter a robot state so that the end effector corresponding to this grasp data is in a grasp posture
@@ -99,7 +99,7 @@ struct GraspData
    * \param posture - what state to set the end effector
    * \return true on success
    */
-  bool setRobotState(robot_state::RobotStatePtr& robot_state, const trajectory_msgs::JointTrajectory& posture);
+  bool setRobotState(moveit::core::RobotStatePtr& robot_state, const trajectory_msgs::msg::JointTrajectory& posture);
 
   /**
    * \brief Debug data to console
@@ -110,17 +110,17 @@ struct GraspData
   std::string tcp_name_;
   Eigen::Isometry3d tcp_to_eef_mount_;  // Convert generic grasp pose to the parent arm's eef_mount frame of reference
 
-  trajectory_msgs::JointTrajectory pre_grasp_posture_;  // when the end effector is in "open" position
-  trajectory_msgs::JointTrajectory grasp_posture_;      // when the end effector is in "close" position
-  std::string base_link_;                               // name of global frame with z pointing up
+  trajectory_msgs::msg::JointTrajectory pre_grasp_posture_;  // when the end effector is in "open" position
+  trajectory_msgs::msg::JointTrajectory grasp_posture_;      // when the end effector is in "close" position
+  std::string base_link_;                                    // name of global frame with z pointing up
 
-  const robot_model::JointModelGroup* ee_jmg_;   // this end effector
-  const robot_model::JointModelGroup* arm_jmg_;  // the arm that attaches to this end effector
-  const robot_model::RobotModelConstPtr robot_model_;
+  const moveit::core::JointModelGroup* ee_jmg_;   // this end effector
+  const moveit::core::JointModelGroup* arm_jmg_;  // the arm that attaches to this end effector
+  const moveit::core::RobotModelConstPtr robot_model_;
 
   // Duplicate end effector data copied from RobotModel
   // the last link in the kinematic chain before the end effector, e.g. "/gripper_roll_link" class
-  const robot_model::LinkModel* parent_link_;
+  const moveit::core::LinkModel* parent_link_;
 
   int angle_resolution_;  // generate grasps at increments of: angle_resolution * pi / 180
 

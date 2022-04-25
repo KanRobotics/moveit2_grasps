@@ -40,7 +40,7 @@
 
 namespace moveit_grasps
 {
-GraspCandidate::GraspCandidate(const moveit_msgs::Grasp& grasp, const GraspDataPtr& grasp_data,
+GraspCandidate::GraspCandidate(const moveit_msgs::msg::Grasp& grasp, const GraspDataPtr& grasp_data,
                                const Eigen::Isometry3d& cuboid_pose)
   : grasp_(grasp)
   , grasp_data_(grasp_data)
@@ -54,7 +54,7 @@ bool GraspCandidate::getPreGraspState(moveit::core::RobotStatePtr& robot_state)
   // Error check
   if (pregrasp_ik_solution_.empty())
   {
-    ROS_ERROR_STREAM_NAMED("grasp_candidate", "No pregrasp ik solution available to set");
+    RCLCPP_ERROR_STREAM(rclcpp::get_logger("grasp_candidate"), "No pregrasp ik solution available to set");
     return false;
   }
 
@@ -72,7 +72,7 @@ bool GraspCandidate::getGraspStateOpen(moveit::core::RobotStatePtr& robot_state)
   // Error check
   if (grasp_ik_solution_.empty())
   {
-    ROS_ERROR_STREAM_NAMED("grasp_candidate", "No grasp ik solution available to set");
+    RCLCPP_ERROR_STREAM(rclcpp::get_logger("grasp_candidate"), "No grasp ik solution available to set");
     return false;
   }
 
@@ -92,7 +92,7 @@ bool GraspCandidate::getGraspStateClosed(moveit::core::RobotStatePtr& robot_stat
 {
   if (grasp_ik_solution_.empty())
   {
-    ROS_ERROR_STREAM_NAMED("grasp_candidate", "No grasp ik solution available to set");
+    RCLCPP_ERROR_STREAM(rclcpp::get_logger("grasp_candidate"), "No grasp ik solution available to set");
     return false;
   }
 

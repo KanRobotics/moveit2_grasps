@@ -40,15 +40,14 @@
 #define MOVEIT_GRASPS__GRASP_CANDIDATE_
 
 // ROS
-#include <ros/ros.h>
-#include <moveit_msgs/Grasp.h>
+#include <rclcpp/rclcpp.hpp>
 
 // Grasping
 #include <moveit_grasps/grasp_data.h>
 
 // MoveIt
 #include <moveit/robot_state/robot_state.h>
-#include <moveit_msgs/Grasp.h>
+#include <moveit_msgs/msg/grasp.hpp>
 
 namespace moveit_grasps
 {
@@ -83,7 +82,8 @@ class GraspCandidate
 {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  GraspCandidate(const moveit_msgs::Grasp& grasp, const GraspDataPtr& grasp_data, const Eigen::Isometry3d& cuboid_pose);
+  GraspCandidate(const moveit_msgs::msg::Grasp& grasp, const GraspDataPtr& grasp_data,
+                 const Eigen::Isometry3d& cuboid_pose);
 
   bool getPreGraspState(moveit::core::RobotStatePtr& robot_state);
 
@@ -97,7 +97,7 @@ public:
 
   virtual bool isValid();
 
-  moveit_msgs::Grasp grasp_;
+  moveit_msgs::msg::Grasp grasp_;
 
   /*# Contents of moveit_msgs::Grasp for reference
 

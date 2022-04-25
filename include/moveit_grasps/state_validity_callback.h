@@ -46,24 +46,30 @@
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 #include <moveit/robot_state/robot_state.h>
 
+template <typename T>
+auto time_to_ns_duration(T seconds)
+{
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::duration<T, std::ratio<1>>(seconds));
+}
+
 namespace
 {
 bool isGraspStateValid(const planning_scene::PlanningScene* planning_scene, bool visual_debug, double verbose_speed,
                        const moveit_visual_tools::MoveItVisualToolsPtr& visual_tools,
-                       robot_state::RobotState* robot_state, const robot_state::JointModelGroup* group,
+                       moveit::core::RobotState* robot_state, const moveit::core::JointModelGroup* group,
                        const double* ik_solution)
 {
   robot_state->setJointGroupPositions(group, ik_solution);
   robot_state->update();
   if (!robot_state->satisfiesBounds(group))
   {
-    ROS_DEBUG_STREAM_NAMED("is_grasp_state_valid", "Ik solution invalid");
+    RCLCPP_DEBUG_STREAM(rclcpp::get_logger("is_grasp_state_valid"), "Ik solution invalid");
     return false;
   }
 
   if (!planning_scene)
   {
-    ROS_ERROR_STREAM_NAMED("is_grasp_state_valid", "No planning scene provided");
+    RCLCPP_ERROR_STREAM(rclcpp::get_logger("is_grasp_state_valid"), "No planning scene provided");
     return false;
   }
 
@@ -77,7 +83,7 @@ bool isGraspStateValid(const planning_scene::PlanningScene* planning_scene, bool
     planning_scene->isStateColliding(*robot_state, group->getName(), true);
     visual_tools->publishContactPoints(*robot_state, planning_scene);
     visual_tools->trigger();
-    ros::Duration(verbose_speed).sleep();
+    rclcpp::sleep_for(time_to_ns_duration(verbose_speed));
   }
   return false;
 }

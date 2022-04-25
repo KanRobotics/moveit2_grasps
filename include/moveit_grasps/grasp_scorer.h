@@ -41,7 +41,7 @@
 
 #include <cmath>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 #include <moveit_grasps/grasp_data.h>
 #include <moveit_visual_tools/moveit_visual_tools.h>

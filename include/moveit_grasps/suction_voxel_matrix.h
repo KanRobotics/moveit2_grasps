@@ -41,7 +41,7 @@
 #define MOVEIT_GRASPS__SUCTION_VOXEL_MATRIX_H_
 
 // ROS
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 // Eigen
 #include <Eigen/Core>
@@ -110,13 +110,15 @@ public:
   {
     if (row >= suction_rows_count_)
     {
-      ROS_DEBUG_STREAM_NAMED("suction_voxel_matrix", "Invalid row " << row << "/" << suction_rows_count_ - 1);
+      RCLCPP_DEBUG_STREAM(rclcpp::get_logger("suction_voxel_matrix"),
+                          "Invalid row " << row << "/" << suction_rows_count_ - 1);
       return false;
     }
 
     if (col >= suction_cols_count_)
     {
-      ROS_DEBUG_STREAM_NAMED("suction_voxel_matrix", "Invalid col " << col << "/" << suction_cols_count_ - 1);
+      RCLCPP_DEBUG_STREAM(rclcpp::get_logger("suction_voxel_matrix"),
+                          "Invalid col " << col << "/" << suction_cols_count_ - 1);
       return false;
     }
 

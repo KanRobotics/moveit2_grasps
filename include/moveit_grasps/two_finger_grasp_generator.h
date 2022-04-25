@@ -33,16 +33,17 @@
  *********************************************************************/
 
 /* Author: Dave Coleman <dave@picknik.ai>, Andy McEvoy
-   Desc:   Generates geometric grasps for cuboids and blocks, not using physics or contact wrenches
+   Desc:   Generates geometric grasps for cuboids and blocks, not using physics
+   or contact wrenches
 */
 
 #ifndef MOVEIT_GRASPS__TWO_FINGER_GRASP_GENERATOR_H_
 #define MOVEIT_GRASPS__TWO_FINGER_GRASP_GENERATOR_H_
 
-#include <moveit_grasps/grasp_generator.h>
 #include <moveit_grasps/grasp_candidate.h>
-#include <moveit_grasps/two_finger_grasp_scorer.h>
+#include <moveit_grasps/grasp_generator.h>
 #include <moveit_grasps/two_finger_grasp_data.h>
+#include <moveit_grasps/two_finger_grasp_scorer.h>
 
 // Testing
 #include <gtest/gtest.h>
@@ -74,17 +75,19 @@ struct TwoFingerGraspCandidateConfig
 class TwoFingerGraspGenerator : public GraspGenerator
 {
 public:
-  // Eigen requires 128-bit alignment for the Eigen::Vector2d's array (of 2 doubles).
-  // With GCC, this is done with a attribute ((aligned(16))).
+  // Eigen requires 128-bit alignment for the Eigen::Vector2d's array (of 2
+  // doubles). With GCC, this is done with a attribute ((aligned(16))).
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   /**
    * \brief Constructor
    */
-  TwoFingerGraspGenerator(const moveit_visual_tools::MoveItVisualToolsPtr& visual_tools, bool verbose = false);
+  TwoFingerGraspGenerator(rclcpp::Node::SharedPtr node, const moveit_visual_tools::MoveItVisualToolsPtr& visual_tools,
+                          bool verbose = false);
 
   /* brief sets internal grasp_candidate_config_ variable
-   * \param grasp_candidate_config - a config describing the grasps to be generated
+   * \param grasp_candidate_config - a config describing the grasps to be
+   * generated
    */
   void setGraspCandidateConfig(const TwoFingerGraspCandidateConfig& grasp_candidate_config);
 
@@ -95,9 +98,9 @@ public:
    * \param width length of cuboid along local y-axis
    * \param height length of cuboid along local z-axis
    * \param grasp_data data describing end effector
-   * \param grasp_candidate_config parameter for selectively enabling and disabling different grasp types
-   * \param grasp_candidates possible grasps generated
-   * \return true if successful
+   * \param grasp_candidate_config parameter for selectively enabling and
+   * disabling different grasp types \param grasp_candidates possible grasps
+   * generated \return true if successful
    */
   bool generateGrasps(const Eigen::Isometry3d& cuboid_pose, double depth, double width, double height,
                       const GraspDataPtr& grasp_data, std::vector<GraspCandidatePtr>& grasp_candidates) override;
@@ -125,13 +128,13 @@ public:
 protected:
   /**
    * \brief creates grasp messages from the generated grasp poses
-   * \param grasp_pose_eef_mount - the grasp pose. (Note: this is the pose of the eef mount not the position of the tcp)
-   * \param grasp_data data describing the end effector
-   * \param object_pose - pose of object to grasp
+   * \param grasp_pose_eef_mount - the grasp pose. (Note: this is the pose of
+   * the eef mount not the position of the tcp) \param grasp_data data
+   * describing the end effector \param object_pose - pose of object to grasp
    * \param object_size - size of object to grasp
-   * \param object_width - In the case of finger grippers, the width of the object in the dimension betwen the fingers
-   * \param grasp_candidates - list possible grasps with new grasp appended
-   * \return true on success
+   * \param object_width - In the case of finger grippers, the width of the
+   * object in the dimension betwen the fingers \param grasp_candidates - list
+   * possible grasps with new grasp appended \return true on success
    */
   bool addGrasp(const Eigen::Isometry3d& grasp_pose_eef_mount, const TwoFingerGraspDataPtr& grasp_data,
                 const Eigen::Isometry3d& object_pose, const Eigen::Vector3d& object_size, double object_width,
@@ -146,8 +149,8 @@ protected:
    * \param axis:             axis of cuboid to generate grasps along
    * \param grasp_data:       data describing end effector
    * \param grasp_candidates: possible grasps generated
-   * \param only_edge_grasps: set to true if object is too wide to grap the face in this axis
-   * \return true if successful
+   * \param only_edge_grasps: set to true if object is too wide to grap the face
+   * in this axis \return true if successful
    */
   bool generateCuboidAxisGrasps(const Eigen::Isometry3d& cuboid_pose, double depth, double width, double height,
                                 grasp_axis_t axis, const TwoFingerGraspDataPtr& grasp_data,
@@ -157,12 +160,12 @@ protected:
   /**
    * \brief helper function for adding grasps at corner of cuboid
    * \param pose - pose of the object to grasp
-   * \param rotation_angles - rotation angles to go from cuboid pose to standard grasping pose
-   * \param translation - translation to go from cuboid centroid to grasping location
-   * \param corner_rotation - extra rotatation needed to align grasp pose as you move around the cuboid
-   * \param num_radial_grasps - the number of grasps to generate around the corner
-   * \param grasp_poses_tcp - list of grasp poses generated
-   * \return the number of poses generated
+   * \param rotation_angles - rotation angles to go from cuboid pose to standard
+   * grasping pose \param translation - translation to go from cuboid centroid
+   * to grasping location \param corner_rotation - extra rotatation needed to
+   * align grasp pose as you move around the cuboid \param num_radial_grasps -
+   * the number of grasps to generate around the corner \param grasp_poses_tcp -
+   * list of grasp poses generated \return the number of poses generated
    */
   std::size_t addCornerGraspsHelper(const Eigen::Isometry3d& pose, double rotation_angles[3],
                                     const Eigen::Vector3d& translation, double corner_rotation,
@@ -171,13 +174,13 @@ protected:
   /**
    * \brief helper function for adding grasps along the face of a cuboid
    * \param pose - pose of the object to grasp
-   * \param rotation_angles - rotation angles to go from cuboid pose to standard grasping pose
-   * \param delta - distance to move away from cuboid at each step
-   * \param translation - translation to go from cuboid centroid to grasping location
-   * \param alignment_rotation - extra rotatation needed to align grasp pose as you move around the cuboid
-   * \param num_grasps - the number of grasps to generate around the corner
-   * \param grasp_poses_tcp - list of grasp poses generated
-   * \return the number of poses generated
+   * \param rotation_angles - rotation angles to go from cuboid pose to standard
+   * grasping pose \param delta - distance to move away from cuboid at each step
+   * \param translation - translation to go from cuboid centroid to grasping
+   * location \param alignment_rotation - extra rotatation needed to align grasp
+   * pose as you move around the cuboid \param num_grasps - the number of grasps
+   * to generate around the corner \param grasp_poses_tcp - list of grasp poses
+   * generated \return the number of poses generated
    */
   std::size_t addFaceGraspsHelper(const Eigen::Isometry3d& pose, double rotation_angles[3],
                                   const Eigen::Vector3d& translation, const Eigen::Vector3d& delta,
@@ -187,13 +190,13 @@ protected:
   /**
    * \brief helper function for adding grasps along the edges of the cuboid
    * \param pose - pose of the object to grasp
-   * \param rotation_angles - rotation angles to go from cuboid pose to standard grasping pose
-   * \param delta - distance to move away from cuboid at each step
-   * \param translation - translation to go from cuboid centroid to grasping location
-   * \param alignment_rotation - extra rotatation needed to align grasp pose as you move around the cuboid
-   * \param num_grasps - the number of grasps to generate around the corner
-   * \param grasp_poses_tcp - list of grasp poses generated
-   * \return the number of poses generated
+   * \param rotation_angles - rotation angles to go from cuboid pose to standard
+   * grasping pose \param delta - distance to move away from cuboid at each step
+   * \param translation - translation to go from cuboid centroid to grasping
+   * location \param alignment_rotation - extra rotatation needed to align grasp
+   * pose as you move around the cuboid \param num_grasps - the number of grasps
+   * to generate around the corner \param grasp_poses_tcp - list of grasp poses
+   * generated \return the number of poses generated
    */
   std::size_t addEdgeGraspsHelper(const Eigen::Isometry3d& cuboid_pose, double rotation_angles[3],
                                   const Eigen::Vector3d& translation, const Eigen::Vector3d& delta,
@@ -201,8 +204,8 @@ protected:
                                   EigenSTL::vector_Isometry3d& grasp_poses_tcp, double corner_rotation);
 
   /**
-   * \brief helper function for determining if the grasp will intersect the cuboid
-   * \param cuboid_pose - centroid of object to grasp in world frame
+   * \brief helper function for determining if the grasp will intersect the
+   * cuboid \param cuboid_pose - centroid of object to grasp in world frame
    * \param depth - size of cuboid along x axis
    * \param width - size of cuboid along y axis
    * \param height - size of cuboid along z axis
@@ -217,9 +220,9 @@ protected:
    * \brief helper function to test intersection of a line with a plane
    * \param t - parametric distance along grasp line
    * \param u1, v1, u2, v2 - (u,v) coordinates of the line
-   * \param a, b - length and width of the plane area in which to test for intersection
-   * \param u, v - location of intersection
-   * \return true if the line intersects the plane
+   * \param a, b - length and width of the plane area in which to test for
+   * intersection \param u, v - location of intersection \return true if the
+   * line intersects the plane
    */
   bool intersectionHelper(double t, double u1, double v1, double u2, double v2, double a, double b, double& u,
                           double& v);
@@ -229,8 +232,9 @@ protected:
    * \param grasp_pose_tcp - the grasp pose of the tcp
    * \param grasp_data - data describing the end effector
    * \param object_pose - the pose of the object being grasped
-   * \param percent_open - percentage that the grippers are open. 0.0 -> grippers are at object width + padding
-   * \return a score with positive being better
+   * \param percent_open - percentage that the grippers are open. 0.0 ->
+   * grippers are at object width + padding \return a score with positive being
+   * better
    */
   double scoreFingerGrasp(const Eigen::Isometry3d& grasp_pose_tcp, const TwoFingerGraspDataPtr& grasp_data,
                           const Eigen::Isometry3d& object_pose, double percent_open);
@@ -247,6 +251,8 @@ protected:
   FRIEND_TEST(TwoFingerGraspGeneratorTest, GenerateEdgeGrasps);
   FRIEND_TEST(TwoFingerGraspGeneratorTest, GenerateCornerGrasps);
 
+private:
+  rclcpp::Node::SharedPtr node_;
 };  // end of class
 
 typedef std::shared_ptr<TwoFingerGraspGenerator> TwoFingerGraspGeneratorPtr;

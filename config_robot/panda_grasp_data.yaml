@@ -37,10 +37,10 @@ hand:
     # x-axis perp. to movement of grippers
     # y-axis parallel to movement of grippers
     # If we have a tool center point frame, we would set:
-    define_tcp_by_name: true
-    tcp_name: "tool_center_point"
+    # define_tcp_by_name: true
+    # tcp_name: "tool_center_point"
     # Alternatively, if we cannot add a frame for the tool center point, we can define tcp by transform
-    # tcp_to_eef_mount_transform :  [0, 0, -0.105, 0, 0, -0.7853] # NOTE: Imaginary point in the middle
+    tcp_to_eef_mount_transform :  [0, 0, -0.105, 0, 0, -0.7853] # NOTE: Imaginary point in the middle
 
     # Target durations in seconds for reaching pregrasp and grasp positions in end effector motions
     pregrasp_time_from_start : 0.0

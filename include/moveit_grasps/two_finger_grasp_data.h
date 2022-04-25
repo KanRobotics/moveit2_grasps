@@ -56,7 +56,7 @@ public:
    * \param end_effector name - which side of a two handed robot to load data for. should correspond to SRDF EE names
    * \param robot_model - The robot model
    */
-  TwoFingerGraspData(const ros::NodeHandle& nh, const std::string& end_effector,
+  TwoFingerGraspData(const rclcpp::Node::SharedPtr nh, const std::string& end_effector,
                      const moveit::core::RobotModelConstPtr& robot_model);
 
   /**
@@ -65,14 +65,15 @@ public:
    * \param end_effector - The end effector joint group name
    * \return true on success
    */
-  bool loadGraspData(const ros::NodeHandle& nh, const std::string& end_effector) override;
+  bool loadGraspData(const rclcpp::Node::SharedPtr nh, const std::string& end_effector) override;
 
   /**
    * \brief Set the width between fingers as a percentage of object size and max finger width
    * \param fraction_open - [0,1] the 0->closed 1->open
    * \return true on success
    */
-  bool setGraspWidth(double fraction_open, double min_finger_width, trajectory_msgs::JointTrajectory& grasp_posture);
+  bool setGraspWidth(double fraction_open, double min_finger_width,
+                     trajectory_msgs::msg::JointTrajectory& grasp_posture);
 
   /**
    * \brief Convert width between fingers to joint positions
@@ -83,7 +84,7 @@ public:
    * \param end_effector - The end effector joint group name
    * \return true on success
    */
-  bool fingerWidthToGraspPosture(double distance_btw_fingers, trajectory_msgs::JointTrajectory& grasp_posture);
+  bool fingerWidthToGraspPosture(double distance_btw_fingers, trajectory_msgs::msg::JointTrajectory& grasp_posture);
 
   /**
    * \brief Convert joint positions to full grasp posture
@@ -92,7 +93,7 @@ public:
    * \return true on success
    */
   bool jointPositionsToGraspPosture(const std::vector<double>& joint_positions,
-                                    trajectory_msgs::JointTrajectory& grasp_posture);
+                                    trajectory_msgs::msg::JointTrajectory& grasp_posture);
 
   /**
    * \brief Debug data to console
