@@ -55,11 +55,9 @@
 
 namespace moveit_grasps
 {
-const std::string LOGNAME = "grasp_data";
-
 GraspData::GraspData(const rclcpp::Node::SharedPtr nh, const std::string& end_effector,
                      const moveit::core::RobotModelConstPtr& robot_model)
-  : base_link_("/base_link"), robot_model_(robot_model)
+  : base_link_("/base_link"), robot_model_(robot_model), grasp_data_logger(rclcpp::get_logger("grasp_data"))
 {
 }
 
@@ -75,11 +73,10 @@ bool GraspData::loadGraspData(const rclcpp::Node::SharedPtr nh, const std::strin
   // Helper to let user know what is wrong
   if (!nh->has_parameter("base_link"))
   {
-    RCLCPP_ERROR_STREAM(rclcpp::get_logger("grasp_data"),
-                        "Grasp configuration parameter `base_link` missing from rosparam "
-                        "server. Did you load your end effector's configuration yaml file? "
-                        "Searching in namespace: "
-                            << nh->get_namespace());
+    RCLCPP_ERROR_STREAM(grasp_data_logger, "Grasp configuration parameter `base_link` missing from rosparam "
+                                           "server. Did you load your end effector's configuration yaml file? "
+                                           "Searching in namespace: "
+                                               << nh->get_namespace());
     return false;
   }
 
@@ -142,7 +139,7 @@ bool GraspData::loadGraspData(const rclcpp::Node::SharedPtr nh, const std::strin
   arm_jmg_ = robot_model_->getJointModelGroup(ee_jmg_->getEndEffectorParentGroup().first);
   parent_link_ = robot_model_->getLinkModel(ee_jmg_->getEndEffectorParentGroup().second);
 
-  RCLCPP_INFO(rclcpp::get_logger("grasp_data"), "ee_name: %s, arm_jmg: %s, parent_link: %s", ee_jmg_->getName().c_str(),
+  RCLCPP_INFO(grasp_data_logger, "ee_name: %s, arm_jmg: %s, parent_link: %s", ee_jmg_->getName().c_str(),
               arm_jmg_->getName().c_str(), parent_link_->getName().c_str());
 
   if (define_tcp_by_name)
@@ -152,7 +149,7 @@ bool GraspData::loadGraspData(const rclcpp::Node::SharedPtr nh, const std::strin
     state.update();
     if (!state.knowsFrameTransform(parent_link_->getName()))
     {
-      RCLCPP_ERROR(rclcpp::get_logger("grasp_data"),
+      RCLCPP_ERROR(grasp_data_logger,
                    "Robot Model does not know the frame transform for the end "
                    "effector group parent "
                    "frame: %s. Did you set a parent link in the srdf?",
@@ -160,7 +157,7 @@ bool GraspData::loadGraspData(const rclcpp::Node::SharedPtr nh, const std::strin
     }
     if (!state.knowsFrameTransform(tcp_name_))
     {
-      RCLCPP_ERROR(rclcpp::get_logger("grasp_data"),
+      RCLCPP_ERROR(grasp_data_logger,
                    "Robot Model does not know the frame transform for the tcp "
                    "frame: %s. Is it "
                    "available in the urdf?",
@@ -176,13 +173,13 @@ bool GraspData::loadGraspData(const rclcpp::Node::SharedPtr nh, const std::strin
 
 bool GraspData::setRobotStatePreGrasp(moveit::core::RobotStatePtr& robot_state)
 {
-  RCLCPP_WARN_STREAM(rclcpp::get_logger("grasp_data"), "setRobotStatePreGrasp is probably wrong");
+  RCLCPP_WARN_STREAM(grasp_data_logger, "setRobotStatePreGrasp is probably wrong");
   return setRobotState(robot_state, pre_grasp_posture_);
 }
 
 bool GraspData::setRobotStateGrasp(moveit::core::RobotStatePtr& robot_state)
 {
-  RCLCPP_WARN_STREAM(rclcpp::get_logger("grasp_data"), "setRobotStateGrasp is probably wrong");
+  RCLCPP_WARN_STREAM(grasp_data_logger, "setRobotStateGrasp is probably wrong");
   return setRobotState(robot_state, grasp_posture_);
 }
 
@@ -201,7 +198,7 @@ bool GraspData::setRobotState(moveit::core::RobotStatePtr& robot_state,
 
 void GraspData::print()
 {
-  RCLCPP_WARN_STREAM(rclcpp::get_logger("grasp_data"), "Debug Grasp Data variable values:");
+  RCLCPP_WARN_STREAM(grasp_data_logger, "Debug Grasp Data variable values:");
   std::cout << "tcp_to_eef_mount_: \n"
             << tcp_to_eef_mount_.translation() << "\n"
             << tcp_to_eef_mount_.rotation() << std::endl;

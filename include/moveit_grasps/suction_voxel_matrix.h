@@ -110,15 +110,13 @@ public:
   {
     if (row >= suction_rows_count_)
     {
-      RCLCPP_DEBUG_STREAM(rclcpp::get_logger("suction_voxel_matrix"),
-                          "Invalid row " << row << "/" << suction_rows_count_ - 1);
+      RCLCPP_DEBUG_STREAM(LOGGER, "Invalid row " << row << "/" << suction_rows_count_ - 1);
       return false;
     }
 
     if (col >= suction_cols_count_)
     {
-      RCLCPP_DEBUG_STREAM(rclcpp::get_logger("suction_voxel_matrix"),
-                          "Invalid col " << col << "/" << suction_cols_count_ - 1);
+      RCLCPP_DEBUG_STREAM(LOGGER, "Invalid col " << col << "/" << suction_cols_count_ - 1);
       return false;
     }
 
@@ -183,6 +181,9 @@ protected:
   double active_suction_range_x_;
   double active_suction_range_y_;
   std::vector<std::vector<std::shared_ptr<SuctionVoxel>>> suction_voxels_;
+
+private:
+rclcpp::Logger LOGGER = rclcpp::get_logger("suction_voxel_matrix");
 };
 
 }  // namespace moveit_grasps

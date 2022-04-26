@@ -43,17 +43,18 @@
 #include <rcpputils/asserts.hpp>
 #include <rosparam_shortcuts/rosparam_shortcuts.h>
 
+rclcpp::Logger grasp_generator = rclcpp::get_logger("grasp_generator");
+
 namespace
 {
 void debugFailedOpenGripper(double percent_open, double min_finger_open_on_approach, double object_width,
                             double grasp_padding_on_approach)
 {
-  RCLCPP_ERROR_STREAM(rclcpp::get_logger("grasp_generator"),
-                      "Unable to set grasp width to " << percent_open << " % open. Stats:"
-                                                      << "\n min_finger_open_on_approach: \t "
-                                                      << min_finger_open_on_approach << "\n object_width: \t "
-                                                      << object_width << "\n grasp_padding_on_approach_: \t "
-                                                      << grasp_padding_on_approach);
+  RCLCPP_ERROR_STREAM(grasp_generator, "Unable to set grasp width to "
+                                           << percent_open << " % open. Stats:"
+                                           << "\n min_finger_open_on_approach: \t " << min_finger_open_on_approach
+                                           << "\n object_width: \t " << object_width
+                                           << "\n grasp_padding_on_approach_: \t " << grasp_padding_on_approach);
 }
 
 }  // namespace

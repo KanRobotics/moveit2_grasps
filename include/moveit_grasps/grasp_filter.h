@@ -341,7 +341,10 @@ protected:
 
 protected:
   // logging name
-  const std::string name_;
+  rclcpp::Logger LOGGER;
+  rclcpp::Logger LOGGER_SUPERDEBUG;
+  rclcpp::Logger LOGGER_FILTER_STATISTIC;
+  rclcpp::Logger LOGGER_FILTER_BY_PLANE;
 
   // Allow a writeable robot state
   moveit::core::RobotStatePtr robot_state_;

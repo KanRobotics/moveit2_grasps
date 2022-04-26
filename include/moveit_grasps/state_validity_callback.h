@@ -59,17 +59,18 @@ bool isGraspStateValid(const planning_scene::PlanningScene* planning_scene, bool
                        moveit::core::RobotState* robot_state, const moveit::core::JointModelGroup* group,
                        const double* ik_solution)
 {
+  rclcpp::Logger logger_is_grasp_state_valid = rclcpp::get_logger("is_grasp_state_valid");
   robot_state->setJointGroupPositions(group, ik_solution);
   robot_state->update();
   if (!robot_state->satisfiesBounds(group))
   {
-    RCLCPP_DEBUG_STREAM(rclcpp::get_logger("is_grasp_state_valid"), "Ik solution invalid");
+    RCLCPP_DEBUG_STREAM(logger_is_grasp_state_valid, "Ik solution invalid");
     return false;
   }
 
   if (!planning_scene)
   {
-    RCLCPP_ERROR_STREAM(rclcpp::get_logger("is_grasp_state_valid"), "No planning scene provided");
+    RCLCPP_ERROR_STREAM(logger_is_grasp_state_valid, "No planning scene provided");
     return false;
   }
 
@@ -86,6 +87,7 @@ bool isGraspStateValid(const planning_scene::PlanningScene* planning_scene, bool
     rclcpp::sleep_for(time_to_ns_duration(verbose_speed));
   }
   return false;
+
 }
 
 }  // namespace

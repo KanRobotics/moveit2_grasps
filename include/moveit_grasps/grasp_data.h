@@ -134,6 +134,8 @@ struct GraspData
   double retreat_distance_desired_;   // this is in addition to the grasp_max_depth
   double lift_distance_desired_;
   double grasp_padding_on_approach_;
+
+  rclcpp::Logger grasp_data_logger;
 };
 
 }  // namespace moveit_grasps

@@ -50,8 +50,6 @@
 
 namespace moveit_grasps_demo
 {
-const std::string LOGNAME = "grasp_generator_demo";
-
 class GraspGeneratorDemo
 {
 private:
@@ -72,6 +70,7 @@ private:
   std::string ee_group_name_;
 
 public:
+  const rclcpp::Logger LOGGER = rclcpp::get_logger("grasp_generator_demo");
   // Constructor
   GraspGeneratorDemo(int num_tests)
   {
@@ -80,7 +79,7 @@ public:
     nh_ = rclcpp::Node::make_shared("grasp_test", node_options);
     nh_->get_parameter_or("ee_group_name", ee_group_name_, std::string("hand"));
 
-    RCLCPP_INFO_STREAM(rclcpp::get_logger("demo"), "End Effector: " << ee_group_name_);
+    RCLCPP_INFO_STREAM(LOGGER, "End Effector: " << ee_group_name_);
 
     // ---------------------------------------------------------------------------------------------
     // Load the Robot Viz Tools for publishing to Rviz
@@ -111,7 +110,7 @@ public:
 
     if (!grasp_data_->loadGraspData(nh_, ee_group_name_))
     {
-      RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOGNAME), "Failed to load Grasp Data parameters.");
+      RCLCPP_ERROR_STREAM(LOGGER, "Failed to load Grasp Data parameters.");
       exit(-1);
     }
 
@@ -171,13 +170,13 @@ public:
       pose.position.x = .3;
 
       // Test visualization of end effector in OPEN position
-      RCLCPP_INFO_STREAM(rclcpp::get_logger("demo"), "Pre-grasp posture: (Orange)");
+      RCLCPP_INFO_STREAM(LOGGER, "Pre-grasp posture: (Orange)");
       visual_tools_->publishEEMarkers(pose, ee_jmg, grasp_data_->pre_grasp_posture_.points[0].positions,
                                       rviz_visual_tools::ORANGE, "demo_eef");
       visual_tools_->publishText(pose, "Pre-Grasp Posture");
 
       // Test visualization of end effector in CLOSED position
-      RCLCPP_INFO_STREAM(rclcpp::get_logger("demo"), "Grasp posture (Green");
+      RCLCPP_INFO_STREAM(LOGGER, "Grasp posture (Green");
       pose.position.z += 0.15;
       visual_tools_->publishEEMarkers(pose, ee_jmg, grasp_data_->grasp_posture_.points[0].positions,
                                       rviz_visual_tools::GREEN, "demo_eef");
@@ -204,7 +203,7 @@ public:
     int i = 0;
     while (rclcpp::ok())
     {
-      RCLCPP_INFO_STREAM(rclcpp::get_logger("demo"), "Adding random posed object " << i + 1 << " of " << num_tests);
+      RCLCPP_INFO_STREAM(LOGGER, "Adding random posed object " << i + 1 << " of " << num_tests);
 
       // Remove randomness when we are only running one test
       if (num_tests == 1)

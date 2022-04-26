@@ -39,6 +39,11 @@
 
 #include <moveit_grasps/grasp_scorer.h>
 
+rclcpp::Logger compute_score_logger = rclcpp::get_logger("grasp_scorer.compute_score");
+rclcpp::Logger angle_logger = rclcpp::get_logger("grasp_scorer.angle");
+rclcpp::Logger scope_grasp_translation_logger = rclcpp::get_logger("grasp_scorer.scoreGraspTranslation");
+rclcpp::Logger translation_logger = rclcpp::get_logger("grasp_scorer.translation");
+
 namespace moveit_grasps
 {
 double GraspScoreWeights::computeScore(const Eigen::Vector3d& orientation_scores,
@@ -53,18 +58,16 @@ double GraspScoreWeights::computeScore(const Eigen::Vector3d& orientation_scores
 
   if (verbose)
   {
-    static const std::string logger_name = "grasp_scorer.compute_score";
-    rclcpp::Logger LOGGER = rclcpp::get_logger(logger_name);
-    RCLCPP_DEBUG_STREAM(LOGGER, "Grasp score: ");
+    RCLCPP_DEBUG_STREAM(compute_score_logger, "Grasp score: ");
     // clang-format off
-    RCLCPP_DEBUG_STREAM(LOGGER, "\torientation_score.x = " << orientation_scores[0] << "\tweight = "<< orientation_x_score_weight_);
-    RCLCPP_DEBUG_STREAM(LOGGER, "\torientation_score.y = " << orientation_scores[1] << "\tweight = "<< orientation_y_score_weight_);
-    RCLCPP_DEBUG_STREAM(LOGGER, "\torientation_score.z = " << orientation_scores[2] << "\tweight = "<< orientation_z_score_weight_);
-    RCLCPP_DEBUG_STREAM(LOGGER, "\ttranslation_score.x = " << translation_scores[0] << "\tweight = "<< translation_x_score_weight_);
-    RCLCPP_DEBUG_STREAM(LOGGER, "\ttranslation_score.y = " << translation_scores[1] << "\tweight = "<< translation_y_score_weight_);
-    RCLCPP_DEBUG_STREAM(LOGGER, "\ttranslation_score.z = " << translation_scores[2] << "\tweight = "<< translation_z_score_weight_);
+    RCLCPP_DEBUG_STREAM(compute_score_logger, "\torientation_score.x = " << orientation_scores[0] << "\tweight = "<< orientation_x_score_weight_);
+    RCLCPP_DEBUG_STREAM(compute_score_logger, "\torientation_score.y = " << orientation_scores[1] << "\tweight = "<< orientation_y_score_weight_);
+    RCLCPP_DEBUG_STREAM(compute_score_logger, "\torientation_score.z = " << orientation_scores[2] << "\tweight = "<< orientation_z_score_weight_);
+    RCLCPP_DEBUG_STREAM(compute_score_logger, "\ttranslation_score.x = " << translation_scores[0] << "\tweight = "<< translation_x_score_weight_);
+    RCLCPP_DEBUG_STREAM(compute_score_logger, "\ttranslation_score.y = " << translation_scores[1] << "\tweight = "<< translation_y_score_weight_);
+    RCLCPP_DEBUG_STREAM(compute_score_logger, "\ttranslation_score.z = " << translation_scores[2] << "\tweight = "<< translation_z_score_weight_);
     // Total
-    RCLCPP_DEBUG_STREAM(LOGGER, "\ttotal_score = " << total_score);
+    RCLCPP_DEBUG_STREAM(compute_score_logger, "\ttotal_score = " << total_score);
     // clang-format on
   }
   return total_score;
@@ -90,7 +93,7 @@ Eigen::Vector3d GraspScorer::scoreRotationsFromDesired(const Eigen::Isometry3d& 
   ideal_pose_axis = ideal_pose.rotation() * Eigen::Vector3d::UnitX();
   cos_angle = grasp_pose_axis.dot(ideal_pose_axis);
   angle = acos(std::max(-1.0, std::min(1.0, cos_angle)));
-  RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_scorer.angle"), "x angle = " << angle * 180.0 / M_PI);
+  RCLCPP_DEBUG_STREAM(angle_logger, "x angle = " << angle * 180.0 / M_PI);
   scores[0] = (M_PI - angle) / M_PI;
 
   // get angle between y-axes
@@ -98,7 +101,7 @@ Eigen::Vector3d GraspScorer::scoreRotationsFromDesired(const Eigen::Isometry3d& 
   ideal_pose_axis = ideal_pose.rotation() * Eigen::Vector3d::UnitY();
   cos_angle = grasp_pose_axis.dot(ideal_pose_axis);
   angle = acos(std::max(-1.0, std::min(1.0, cos_angle)));
-  RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_scorer.angle"), "y angle = " << angle * 180.0 / M_PI);
+  RCLCPP_DEBUG_STREAM(angle_logger, "y angle = " << angle * 180.0 / M_PI);
   scores[1] = (M_PI - angle) / M_PI;
 
   // get angle between z-axes
@@ -106,7 +109,7 @@ Eigen::Vector3d GraspScorer::scoreRotationsFromDesired(const Eigen::Isometry3d& 
   ideal_pose_axis = ideal_pose.rotation() * Eigen::Vector3d::UnitZ();
   cos_angle = grasp_pose_axis.dot(ideal_pose_axis);
   angle = acos(std::max(-1.0, std::min(1.0, cos_angle)));
-  RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_scorer.angle"), "z angle = " << angle * 180.0 / M_PI);
+  RCLCPP_DEBUG_STREAM(angle_logger, "z angle = " << angle * 180.0 / M_PI);
   scores[2] = (M_PI - angle) / M_PI;
 
   return scores;
@@ -118,7 +121,7 @@ Eigen::Vector3d GraspScorer::scoreGraspTranslation(const Eigen::Isometry3d& gras
   // We assume that the ideal is in the middle
   Eigen::Vector3d scores = -Eigen::Vector3d(grasp_pose_tcp.translation() - ideal_pose.translation()).array().abs();
 
-  RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_scorer.scoreGraspTranslation"),
+  RCLCPP_DEBUG_STREAM(scope_grasp_translation_logger,
                       "value, ideal, score:\n"
                           << "x: " << grasp_pose_tcp.translation()[0] << "\t" << ideal_pose.translation()[0] << "\t"
                           << scores[0] << "\n"
@@ -151,7 +154,7 @@ Eigen::Vector3d GraspScorer::scoreGraspTranslation(const Eigen::Isometry3d& gras
     scores[i] = pow(score, 2);
   }
 
-  RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_scorer.translation"),
+  RCLCPP_DEBUG_STREAM(scope_grasp_translation_logger,
                       "\nvalue, min, max, score:\n"
                           << grasp_pose_tcp.translation()[0] << ", " << min_translations[0] << ", "
                           << max_translations[0] << ", " << scores[0] << "\n"
