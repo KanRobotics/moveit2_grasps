@@ -49,9 +49,10 @@
 namespace moveit_grasps
 {
 // Constructor
-TwoFingerGraspFilter::TwoFingerGraspFilter(const robot_state::RobotStatePtr& robot_state,
+TwoFingerGraspFilter::TwoFingerGraspFilter(rclcpp::Node::SharedPtr node, const moveit::core::RobotStatePtr& robot_state,
                                            const moveit_visual_tools::MoveItVisualToolsPtr& visual_tools)
-  : GraspFilter(robot_state, visual_tools), name_("two_finger_grasp_filter")
+  : GraspFilter(node, robot_state, visual_tools)
+  , LOGGER_SUPERDEBUG(rclcpp::get_logger("two_finger_grasp_filter.superdebug"))
 {
 }
 
@@ -84,7 +85,7 @@ bool TwoFingerGraspFilter::checkFingersClosedIK(std::vector<double>& ik_solution
   // Check constraint function
   if (!constraint_fn(ik_thread_struct->robot_state_.get(), grasp_candidate->grasp_data_->arm_jmg_, &ik_solution[0]))
   {
-    ROS_WARN_STREAM_NAMED(name_ + ".superdebug", "Grasp filtered because in collision with fingers CLOSED");
+    RCLCPP_WARN_STREAM(LOGGER_SUPERDEBUG, "Grasp filtered because in collision with fingers CLOSED");
     grasp_candidate->grasp_filtered_code_ = GraspFilterCode::GRASP_FILTERED_BY_IK_CLOSED;
     return false;
   }

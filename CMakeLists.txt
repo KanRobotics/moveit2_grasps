@@ -104,20 +104,23 @@ include_directories(
 # set_target_properties(${PROJECT_NAME}_filter PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 
 # # Demo filter executable
-# add_executable(${PROJECT_NAME}_grasp_filter_demo src/demo/grasp_filter_demo.cpp)
-# ament_target_dependencies(${PROJECT_NAME}_grasp_filter_demo
-#     ${THIS_PACKAGE_INCLUDE_DEPENDS} Boost)
+add_executable(${PROJECT_NAME}_grasp_filter_demo
+  src/grasp_data.cpp
+  src/grasp_candidate.cpp
+  src/grasp_scorer.cpp
+  src/grasp_generator.cpp
+  src/grasp_filter.cpp
+  src/two_finger_grasp_data.cpp
+  src/two_finger_grasp_filter.cpp
+  src/two_finger_grasp_generator.cpp
+  src/two_finger_grasp_scorer.cpp
+  src/demo/grasp_filter_demo.cpp
+)
+ament_target_dependencies(${PROJECT_NAME}_grasp_filter_demo
+    ${THIS_PACKAGE_INCLUDE_DEPENDS} Boost)
 
 # Demo grasp executable
 add_executable(${PROJECT_NAME}_grasp_generator_demo
-  # include/moveit_grasps/two_finger_grasp_data.h
-  # include/moveit_grasps/two_finger_grasp_generator.h
-  # include/moveit_grasps/two_finger_grasp_scorer.h
-  # include/moveit_grasps/grasp_data.h
-  # include/moveit_grasps/grasp_candidate.h
-  # include/moveit_grasps/grasp_generator.h
-  # include/moveit_grasps/grasp_scorer.h
-  # include/moveit_grasps/suction_voxel_matrix.h
   src/grasp_data.cpp
   src/grasp_candidate.cpp
   src/grasp_scorer.cpp
@@ -170,6 +173,10 @@ install(DIRECTORY config config_robot launch resources
 )
 
 # Install executables
+install(TARGETS
+${PROJECT_NAME}_grasp_filter_demo
+DESTINATION lib/${PROJECT_NAME}
+)
 install(TARGETS
   ${PROJECT_NAME}_grasp_generator_demo
   DESTINATION lib/${PROJECT_NAME}

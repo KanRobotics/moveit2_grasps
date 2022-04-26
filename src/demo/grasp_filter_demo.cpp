@@ -37,24 +37,24 @@
 */
 
 // ROS
-#include <ros/ros.h>
-#include <geometry_msgs/PoseArray.h>
-#include <sensor_msgs/JointState.h>
+#include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/pose_array.h>
+#include <sensor_msgs/msg/joint_state.h>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
 // MoveIt
-#include <moveit_msgs/MoveGroupAction.h>
-#include <moveit_msgs/DisplayTrajectory.h>
-#include <moveit_msgs/RobotState.h>
+#include <moveit_msgs/action/move_group.h>
+#include <moveit_msgs/msg/display_trajectory.h>
+#include <moveit_msgs/msg/robot_state.h>
 #include <moveit/kinematic_constraints/utils.h>
 #include <moveit/robot_state/robot_state.h>
 #include <moveit/robot_state/conversions.h>
 #include <moveit/robot_model_loader/robot_model_loader.h>
 
 // Rviz
-#include <visualization_msgs/Marker.h>
-#include <visualization_msgs/MarkerArray.h>
+#include <visualization_msgs/msg/marker.h>
+#include <visualization_msgs/msg/marker_array.h>
 
 // Grasp
 #include <moveit_grasps/two_finger_grasp_generator.h>
@@ -74,19 +74,22 @@ class GraspFilterDemo
 {
 public:
   // Constructor
-  GraspFilterDemo() : nh_("~")
+  GraspFilterDemo()
   {
+    rclcpp::NodeOptions node_options;
+    node_options.automatically_declare_parameters_from_overrides(true);
+    nh_ = rclcpp::Node::make_shared("grasp_test", node_options);
     // Get arm info from param server
     const std::string parent_name = "grasp_filter_demo";  // for namespacing logging messages
-    rosparam_shortcuts::get(parent_name, nh_, "planning_group_name", planning_group_name_);
-    rosparam_shortcuts::get(parent_name, nh_, "ee_group_name", ee_group_name_);
+    rosparam_shortcuts::get(nh_, "planning_group_name", planning_group_name_);
+    rosparam_shortcuts::get(nh_, "ee_group_name", ee_group_name_);
 
-    ROS_INFO_STREAM_NAMED("test", "End Effector: " << ee_group_name_);
-    ROS_INFO_STREAM_NAMED("test", "Planning Group: " << planning_group_name_);
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("test"), "End Effector: " << ee_group_name_);
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("test"), "Planning Group: " << planning_group_name_);
 
     // ---------------------------------------------------------------------------------------------
     // Load planning scene to share
-    planning_scene_monitor_ = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description");
+    planning_scene_monitor_ = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(nh_, "robot_description");
     if (planning_scene_monitor_->getPlanningScene())
     {
       planning_scene_monitor_->startPublishingPlanningScene(planning_scene_monitor::PlanningSceneMonitor::UPDATE_SCENE,
@@ -95,17 +98,17 @@ public:
     }
     else
     {
-      ROS_ERROR_STREAM_NAMED("test", "Planning scene not configured");
+      RCLCPP_ERROR_STREAM(rclcpp::get_logger("test"), "Planning scene not configured");
       return;
     }
 
-    const robot_model::RobotModelConstPtr robot_model = planning_scene_monitor_->getRobotModel();
+    const moveit::core::RobotModelConstPtr robot_model = planning_scene_monitor_->getRobotModel();
     arm_jmg_ = robot_model->getJointModelGroup(planning_group_name_);
 
     // ---------------------------------------------------------------------------------------------
     // Load the Robot Viz Tools for publishing to Rviz
     visual_tools_ = std::make_shared<moveit_visual_tools::MoveItVisualTools>(
-        robot_model->getModelFrame(), "/rviz_visual_tools", planning_scene_monitor_);
+        nh_, robot_model->getModelFrame(), "/rviz_visual_tools", planning_scene_monitor_);
     visual_tools_->loadMarkerPub();
     visual_tools_->loadRobotStatePub("/display_robot_state");
     visual_tools_->loadTrajectoryPub("/display_planned_path");
@@ -116,7 +119,7 @@ public:
     visual_tools_->hideRobot();
     visual_tools_->trigger();
 
-    robot_state::RobotStatePtr robot_state = visual_tools_->getSharedRobotState();
+    moveit::core::RobotStatePtr robot_state = visual_tools_->getSharedRobotState();
 
     // ---------------------------------------------------------------------------------------------
     // Load grasp data specific to our robot
@@ -124,7 +127,7 @@ public:
         std::make_shared<moveit_grasps::TwoFingerGraspData>(nh_, ee_group_name_, visual_tools_->getRobotModel());
     if (!grasp_data_->loadGraspData(nh_, ee_group_name_))
     {
-      ROS_ERROR_STREAM_NAMED(LOGNAME, "Failed to load Grasp Data parameters.");
+      RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOGNAME), "Failed to load Grasp Data parameters.");
       exit(-1);
     }
 
@@ -134,7 +137,7 @@ public:
 
     // ---------------------------------------------------------------------------------------------
     // Load grasp generator
-    grasp_generator_ = std::make_shared<moveit_grasps::TwoFingerGraspGenerator>(visual_tools_);
+    grasp_generator_ = std::make_shared<moveit_grasps::TwoFingerGraspGenerator>(nh_, visual_tools_);
 
     // Set the ideal grasp orientation for scoring
     std::vector<double> ideal_grasp_rpy = { 3.14, 0.0, 0.0 };
@@ -157,7 +160,7 @@ public:
 
     // ---------------------------------------------------------------------------------------------
     // Load grasp filter
-    grasp_filter_ = std::make_shared<moveit_grasps::TwoFingerGraspFilter>(robot_state, visual_tools_);
+    grasp_filter_ = std::make_shared<moveit_grasps::TwoFingerGraspFilter>(nh_, robot_state, visual_tools_);
 
     // ---------------------------------------------------------------------------------------------
     // Clear Markers
@@ -173,19 +176,19 @@ public:
     // Loop
     for (std::size_t i = 0; i < num_tests; ++i)
     {
-      if (!ros::ok())
+      if (!rclcpp::ok())
         break;
 
-      ROS_INFO_STREAM_NAMED("test", "Adding random object " << i + 1 << " of " << num_tests);
+      RCLCPP_INFO_STREAM(rclcpp::get_logger("test"), "Adding random object " << i + 1 << " of " << num_tests);
 
       // Generate random cuboid
-      geometry_msgs::Pose object_pose;
-      double xmin = 0.5;
-      double xmax = 0.7;
-      double ymin = -0.25;
-      double ymax = 0.25;
-      double zmin = 0.2;
-      double zmax = 0.7;
+      geometry_msgs::msg::Pose object_pose;
+      double xmin = 0.27;
+      double xmax = 0.29;
+      double ymin = -0.19;
+      double ymax = -0.21;
+      double zmin = 0.49;
+      double zmax = 0.51;
       rviz_visual_tools::RandomPoseBounds pose_bounds(xmin, xmax, ymin, ymax, zmin, zmax);
 
       double cuboid_size_min = 0.01;
@@ -201,7 +204,7 @@ public:
       visual_tools_->trigger();
 
       // Generate set of grasps for one object
-      ROS_INFO_STREAM_NAMED("test", "Generating cuboid grasps");
+      RCLCPP_INFO_STREAM(rclcpp::get_logger("test"), "Generating cuboid grasps");
       std::vector<moveit_grasps::GraspCandidatePtr> grasp_candidates;
 
       // Configure the desired types of grasps
@@ -222,7 +225,7 @@ public:
       // grasp_candidates);
 
       // Filter the grasp for only the ones that are reachable
-      ROS_INFO_STREAM_NAMED("test", "Filtering grasps kinematically");
+      RCLCPP_INFO_STREAM(rclcpp::get_logger("test"), "Filtering grasps kinematically");
       bool filter_pregrasps = true;
       // int direction = 1;
 
@@ -246,19 +249,20 @@ public:
 
       if (valid_grasps == 0)
       {
-        ROS_ERROR_STREAM_NAMED("test", "No valid grasps found after IK filtering");
+        RCLCPP_ERROR_STREAM(rclcpp::get_logger("test"), "No valid grasps found after IK filtering");
         continue;
       }
 
-      ROS_INFO_STREAM_NAMED("test", "finished trial, wating 5s to start next trial");
-      ros::Duration(5.0).sleep();  // give some time to look at results of each trial
-    }                              // for each trial
+      RCLCPP_INFO_STREAM(rclcpp::get_logger("test"), "finished trial, wating 5s to start next trial");
+      using namespace std::chrono_literals;
+      rclcpp::sleep_for(5s);  // give some time to look at results of each trial
+    }                         // for each trial
     return true;
   }
 
 private:
   // A shared node handle
-  ros::NodeHandle nh_;
+  rclcpp::Node::SharedPtr nh_;
 
   // Tool for visualizing things in Rviz
   moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
@@ -276,7 +280,7 @@ private:
   planning_scene_monitor::PlanningSceneMonitorPtr planning_scene_monitor_;
 
   // Arm
-  const robot_model::JointModelGroup* arm_jmg_;
+  const moveit::core::JointModelGroup* arm_jmg_;
 
   // Which arm should be used
   std::string ee_group_name_;
@@ -290,29 +294,33 @@ int main(int argc, char* argv[])
 {
   int num_tests = 1;
 
-  ros::init(argc, argv, "grasp_filter_demo");
+  rclcpp::init(argc, argv);
+  rclcpp::NodeOptions node_options;
+  node_options.automatically_declare_parameters_from_overrides(true);
+  auto grasp_generator_demo_node = rclcpp::Node::make_shared("grasp_generator_demo", node_options);
 
-  // Allow the action server to recieve and send ros messages
-  ros::AsyncSpinner spinner(2);
-  spinner.start();
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(grasp_generator_demo_node);
+  std::thread([&executor]() { executor.spin(); }).detach();
 
   // Seed random
-  srand(ros::Time::now().toSec());
+  srand(grasp_generator_demo_node->get_clock()->now().seconds());
 
   // Benchmark time
-  ros::Time start_time;
-  start_time = ros::Time::now();
+  rclcpp::Time start_time;
+  start_time = grasp_generator_demo_node->get_clock()->now();
 
   // Run Tests
   moveit_grasps_demo::GraspFilterDemo tester;
   tester.testRandomGrasps(num_tests);
 
   // Benchmark time
-  double duration = (ros::Time::now() - start_time).toSec();
-  ROS_INFO_STREAM_NAMED("grasp_filter_demo", "Total time: " << duration << "\t" << num_tests);
+  double duration = (grasp_generator_demo_node->get_clock()->now() - start_time).seconds();
+  RCLCPP_INFO_STREAM(rclcpp::get_logger("grasp_filter_demo"), "Total time: " << duration << "\t" << num_tests);
   std::cout << "Total time: " << duration << "\t" << num_tests << std::endl;
 
-  ros::Duration(1.0).sleep();  // let rviz markers finish publishing
+  using namespace std::chrono_literals;
+  rclcpp::sleep_for(1s);  // let rviz markers finish publishing
 
   return 0;
 }
