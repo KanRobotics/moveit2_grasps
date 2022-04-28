@@ -603,7 +603,7 @@ bool GraspFilter::findIKSolution(std::vector<double>& ik_solution, const IkThrea
   ik_thread_struct->planning_scene_->getCurrentState().getAttachedBodies(attached_bodies);
 
   for (const moveit::core::AttachedBody* ab : attached_bodies)
-    state.attachBody(const_cast<moveit::core::AttachedBody*>(ab));
+    state.attachBody(const_cast<moveit::core::AttachedBody*>(ab)); //TODO TODO TODO
 
   bool ik_success = state.setFromIK(grasp_candidate->grasp_data_->arm_jmg_, ik_thread_struct->ik_pose_.pose,
                                     ik_thread_struct->timeout_, constraint_fn);

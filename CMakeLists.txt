@@ -135,16 +135,36 @@ ament_target_dependencies(${PROJECT_NAME}_grasp_generator_demo
 ${THIS_PACKAGE_INCLUDE_DEPENDS} Boost)
 
 # # Demo grasp data settings
-# add_executable(${PROJECT_NAME}_grasp_poses_visualizer_demo src/demo/grasp_poses_visualizer_demo.cpp)
-# target_link_libraries(${PROJECT_NAME}_grasp_poses_visualizer_demo
-#   ${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES}
-# )
+add_executable(${PROJECT_NAME}_grasp_poses_visualizer_demo
+  src/grasp_data.cpp
+  src/grasp_candidate.cpp
+  src/grasp_scorer.cpp
+  src/grasp_generator.cpp
+  src/grasp_filter.cpp
+  src/two_finger_grasp_data.cpp
+  src/two_finger_grasp_generator.cpp
+  src/two_finger_grasp_scorer.cpp
+  src/demo/grasp_poses_visualizer_demo.cpp
+)
+ament_target_dependencies(${PROJECT_NAME}_grasp_poses_visualizer_demo
+  ${THIS_PACKAGE_INCLUDE_DEPENDS} Boost)
 
 # # Demo grasp pipeline
-# add_executable(${PROJECT_NAME}_grasp_pipeline_demo src/demo/grasp_pipeline_demo.cpp)
-# target_link_libraries(${PROJECT_NAME}_grasp_pipeline_demo
-#   ${PROJECT_NAME} ${PROJECT_NAME}_filter ${catkin_LIBRARIES} ${Boost_LIBRARIES}
-# )
+add_executable(${PROJECT_NAME}_grasp_pipeline_demo
+  src/grasp_data.cpp
+  src/grasp_candidate.cpp
+  src/grasp_scorer.cpp
+  src/grasp_generator.cpp
+  src/grasp_filter.cpp
+  src/grasp_planner.cpp
+  src/two_finger_grasp_data.cpp
+  src/two_finger_grasp_generator.cpp
+  src/two_finger_grasp_filter.cpp
+  src/two_finger_grasp_scorer.cpp
+  src/demo/grasp_pipeline_demo.cpp
+)
+ament_target_dependencies(${PROJECT_NAME}_grasp_pipeline_demo
+  ${THIS_PACKAGE_INCLUDE_DEPENDS} Boost)
 
 # # Demo suction grasp pipeline
 # add_executable(${PROJECT_NAME}_suction_grasp_pipeline_demo src/demo/suction_grasp_pipeline_demo.cpp)
@@ -174,12 +194,11 @@ install(DIRECTORY config config_robot launch resources
 
 # Install executables
 install(TARGETS
-${PROJECT_NAME}_grasp_filter_demo
-DESTINATION lib/${PROJECT_NAME}
-)
-install(TARGETS
+  ${PROJECT_NAME}_grasp_filter_demo
   ${PROJECT_NAME}_grasp_generator_demo
-  DESTINATION lib/${PROJECT_NAME}
+  ${PROJECT_NAME}_grasp_poses_visualizer_demo
+  ${PROJECT_NAME}_grasp_pipeline_demo
+DESTINATION lib/${PROJECT_NAME}
 )
 
 #############

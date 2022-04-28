@@ -47,16 +47,16 @@
 namespace moveit_grasps
 {
 constexpr char ENABLED_PARENT_NAME[] = "grasp_planner";  // for namespacing logging messages
-constexpr char ENABLED_SETTINGS_NAMESPACE[] = "moveit_grasps/planner";
+const std::string ENABLED_SETTINGS_NAMESPACE = "moveit_grasps.planner";
 
-GraspPlanner::GraspPlanner(const moveit_visual_tools::MoveItVisualToolsPtr& visual_tools)
-  : nh_("~"), visual_tools_(visual_tools)
+GraspPlanner::GraspPlanner(rclcpp::Node::SharedPtr node, const moveit_visual_tools::MoveItVisualToolsPtr& visual_tools)
+  : nh_(node), visual_tools_(visual_tools)
 {
   loadEnabledSettings();
 }
 
 bool GraspPlanner::planAllApproachLiftRetreat(
-    std::vector<GraspCandidatePtr>& grasp_candidates, const robot_state::RobotStatePtr& robot_state,
+    std::vector<GraspCandidatePtr>& grasp_candidates, const moveit::core::RobotStatePtr& robot_state,
     const planning_scene_monitor::PlanningSceneMonitorPtr& planning_scene_monitor, const std::string& grasp_object_id)
 {
   boost::scoped_ptr<planning_scene_monitor::LockedPlanningSceneRO> ls;
@@ -66,11 +66,12 @@ bool GraspPlanner::planAllApproachLiftRetreat(
 }
 
 bool GraspPlanner::planAllApproachLiftRetreat(std::vector<GraspCandidatePtr>& grasp_candidates,
-                                              const robot_state::RobotStatePtr& robot_state,
+                                              const moveit::core::RobotStatePtr& robot_state,
                                               const planning_scene::PlanningSceneConstPtr& planning_scene,
                                               const std::string& grasp_object_id)
 {
-  ROS_INFO_STREAM_NAMED("grasp_planner", "Planning all remaining grasps with approach lift retreat cartesian path");
+  RCLCPP_INFO_STREAM(rclcpp::get_logger("grasp_planner"),
+                     "Planning all remaining grasps with approach lift retreat cartesian path");
 
   // For each remaining grasp, calculate entire approach, lift, and retreat path.
   // Remove those that have no valid path
@@ -80,19 +81,21 @@ bool GraspPlanner::planAllApproachLiftRetreat(std::vector<GraspCandidatePtr>& gr
   std::size_t count = 0;
   for (std::vector<GraspCandidatePtr>::iterator grasp_it = grasp_candidates.begin(); grasp_it != grasp_candidates.end();)
   {
-    if (!ros::ok())
+    if (!rclcpp::ok())
       return false;
 
     if (isEnabled("verbose_cartesian_filtering"))
     {
-      ROS_INFO_STREAM_NAMED("grasp_planner", "");
-      ROS_INFO_STREAM_NAMED("grasp_planner", "Attempting to plan cartesian grasp path #"
-                                                 << count++ << ". " << grasp_candidates.size() << " remaining.");
+      RCLCPP_INFO_STREAM(rclcpp::get_logger("grasp_planner"), "");
+      RCLCPP_INFO_STREAM(rclcpp::get_logger("grasp_planner"), "Attempting to plan cartesian grasp path #"
+                                                                  << count++ << ". " << grasp_candidates.size()
+                                                                  << " remaining.");
     }
 
     if (!planApproachLiftRetreat(*grasp_it, robot_state, planning_scene, verbose_cartesian_filtering, grasp_object_id))
     {
-      ROS_INFO_STREAM_NAMED("grasp_planner", "Grasp candidate was unable to find valid cartesian waypoint path");
+      RCLCPP_INFO_STREAM(rclcpp::get_logger("grasp_planner"),
+                         "Grasp candidate was unable to find valid cartesian waypoint path");
 
       grasp_it = grasp_candidates.erase(grasp_it);  // not valid
     }
@@ -124,14 +127,14 @@ bool GraspPlanner::planAllApproachLiftRetreat(std::vector<GraspCandidatePtr>& gr
   // If no grasp candidates had valid paths, then we return false
   if (grasp_candidates.size() == 0)
   {
-    ROS_DEBUG_STREAM_NAMED("grasp_planner", "No valid grasp plan possible");
+    RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_planner"), "No valid grasp plan possible");
     return false;
   }
   return true;
 }
 
 bool GraspPlanner::planApproachLiftRetreat(GraspCandidatePtr& grasp_candidate,
-                                           const robot_state::RobotStatePtr& robot_state,
+                                           const moveit::core::RobotStatePtr& robot_state,
                                            const planning_scene_monitor::PlanningSceneMonitorPtr& planning_scene_monitor,
                                            bool verbose_cartesian_filtering, const std::string& grasp_object_id)
 {
@@ -143,7 +146,7 @@ bool GraspPlanner::planApproachLiftRetreat(GraspCandidatePtr& grasp_candidate,
 }
 
 bool GraspPlanner::planApproachLiftRetreat(GraspCandidatePtr& grasp_candidate,
-                                           const robot_state::RobotStatePtr& robot_state,
+                                           const moveit::core::RobotStatePtr& robot_state,
                                            const planning_scene::PlanningSceneConstPtr& planning_scene,
                                            bool verbose_cartesian_filtering, const std::string& grasp_object_id)
 {
@@ -182,27 +185,28 @@ bool GraspPlanner::planApproachLiftRetreat(GraspCandidatePtr& grasp_candidate,
   moveit::core::RobotStatePtr start_state(new moveit::core::RobotState(*robot_state));
   if (!grasp_candidate->getPreGraspState(start_state))
   {
-    ROS_WARN_STREAM_NAMED("grasp_planner.waypoints", "Unable to set pregrasp");
+    RCLCPP_WARN_STREAM(rclcpp::get_logger("grasp_planner.waypoints"), "Unable to set pregrasp");
     return false;
   }
 
   if (!computeCartesianWaypointPath(grasp_candidate, planning_scene, start_state, waypoints, grasp_object_id))
   {
-    ROS_DEBUG_STREAM_NAMED("grasp_planner.waypoints", "Unable to plan approach lift retreat path");
+    RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_planner.waypoints"), "Unable to plan approach lift retreat path");
 
     return false;
   }
 
   // Feedback
-  ROS_DEBUG_STREAM_NAMED("grasp_planner.waypoints", "Found valid and complete waypoint manipulation path for grasp "
-                                                    "candidate");
+  RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_planner.waypoints"),
+                      "Found valid and complete waypoint manipulation path for grasp "
+                      "candidate");
 
   // Show visuals
   if (show_cartesian_waypoints)
   {
-    ROS_INFO_STREAM_NAMED("grasp_planner.waypoints", "Visualize end effector position of cartesian path for "
-                                                         << grasp_candidate->segmented_cartesian_traj_.size()
-                                                         << " segments");
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("grasp_planner.waypoints"),
+                       "Visualize end effector position of cartesian path for "
+                           << grasp_candidate->segmented_cartesian_traj_.size() << " segments");
     visual_tools_->publishTrajectoryPoints(grasp_candidate->segmented_cartesian_traj_[APPROACH],
                                            grasp_candidate->grasp_data_->parent_link_, rviz_visual_tools::YELLOW);
     visual_tools_->publishTrajectoryPoints(grasp_candidate->segmented_cartesian_traj_[LIFT],
@@ -264,8 +268,9 @@ bool GraspPlanner::computeCartesianWaypointPath(GraspCandidatePtr& grasp_candida
   // Check for kinematic solver
   if (!grasp_candidate->grasp_data_->arm_jmg_->canSetStateFromIK(ik_tip_link->getName()))
   {
-    ROS_ERROR_STREAM_NAMED("grasp_planner.waypoints", "No IK Solver loaded - make sure moveit_config/kinamatics.yaml "
-                                                      "is loaded in this namespace");
+    RCLCPP_ERROR_STREAM(rclcpp::get_logger("grasp_planner.waypoints"),
+                        "No IK Solver loaded - make sure moveit_config/kinamatics.yaml "
+                        "is loaded in this namespace");
     return false;
   }
 
@@ -276,14 +281,15 @@ bool GraspPlanner::computeCartesianWaypointPath(GraspCandidatePtr& grasp_candida
   {
     if (attempts > 0)
     {
-      ROS_DEBUG_STREAM_NAMED("grasp_planner.waypoints", "Attempting IK solution, attempt # " << attempts + 1);
+      RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_planner.waypoints"),
+                          "Attempting IK solution, attempt # " << attempts + 1);
     }
     attempts++;
 
     moveit::core::RobotStatePtr start_state_copy(new moveit::core::RobotState(*start_state));
     if (!grasp_candidate->getPreGraspState(start_state_copy))
     {
-      ROS_ERROR_STREAM_NAMED("grasp_planner.waypoints", "Unable to set pregrasp");
+      RCLCPP_ERROR_STREAM(rclcpp::get_logger("grasp_planner.waypoints"), "Unable to set pregrasp");
       return false;
     }
 
@@ -304,15 +310,15 @@ bool GraspPlanner::computeCartesianWaypointPath(GraspCandidatePtr& grasp_candida
     // Compute Cartesian Path
     grasp_candidate->segmented_cartesian_traj_.clear();
     grasp_candidate->segmented_cartesian_traj_.resize(3);
-    double valid_approach_percentage = robot_state::CartesianInterpolator::computeCartesianPath(
+    double valid_approach_percentage = moveit::core::CartesianInterpolator::computeCartesianPath(
         start_state_copy.get(), grasp_candidate->grasp_data_->arm_jmg_,
         grasp_candidate->segmented_cartesian_traj_[APPROACH], ik_tip_link, waypoints[APPROACH], global_reference_frame,
-        robot_state::MaxEEFStep(max_step), robot_state::JumpThreshold(jump_threshold), constraint_fn,
+        moveit::core::MaxEEFStep(max_step), moveit::core::JumpThreshold(jump_threshold), constraint_fn,
         kinematics::KinematicsQueryOptions());
 
     if (!grasp_candidate->getGraspStateClosedEEOnly(start_state_copy))
     {
-      ROS_ERROR_STREAM_NAMED("grasp_planner", "Unable to set pregrasp");
+      RCLCPP_ERROR_STREAM(rclcpp::get_logger("grasp_planner"), "Unable to set pregrasp");
       return false;
     }
 
@@ -320,10 +326,10 @@ bool GraspPlanner::computeCartesianWaypointPath(GraspCandidatePtr& grasp_candida
     if (!grasp_object_id.empty() && scene->knowsFrameTransform(grasp_object_id))
     {
       // Create an AttachedCollisionObject
-      moveit_msgs::AttachedCollisionObject aco;
+      moveit_msgs::msg::AttachedCollisionObject aco;
 
       // Create a reference to the collision object for convenience
-      moveit_msgs::CollisionObject& suction_voxel_co = aco.object;
+      moveit_msgs::msg::CollisionObject& suction_voxel_co = aco.object;
 
       suction_voxel_co.id = grasp_object_id;
       suction_voxel_co.header.frame_id = ik_tip_link->getName();
@@ -335,47 +341,48 @@ bool GraspPlanner::computeCartesianWaypointPath(GraspCandidatePtr& grasp_candida
       scene->setCurrentState(*start_state_copy);
 
       // Mark object to be added
-      suction_voxel_co.operation = moveit_msgs::CollisionObject::ADD;
+      suction_voxel_co.operation = moveit_msgs::msg::CollisionObject::ADD;
       if (!scene->processAttachedCollisionObjectMsg(aco))
       {
-        ROS_WARN_STREAM_NAMED("grasp_planner", "Failed to attach: " << aco.object.id);
+        RCLCPP_WARN_STREAM(rclcpp::get_logger("grasp_planner"), "Failed to attach: " << aco.object.id);
       }
       else
       {
-        auto start_state_with_body = std::make_shared<robot_state::RobotState>(scene->getCurrentState());
-        std::vector<const robot_state::AttachedBody*> attached_bodies;
+        auto start_state_with_body = std::make_shared<moveit::core::RobotState>(scene->getCurrentState());
+        std::vector<const moveit::core::AttachedBody*> attached_bodies;
         start_state_with_body->getAttachedBodies(attached_bodies);
         for (const auto& ab : attached_bodies)
-          start_state_copy->attachBody(ab->getName(), ab->getPose(), ab->getShapes(), ab->getShapePoses(),
-                                       ab->getTouchLinks(), ab->getAttachedLinkName(), ab->getDetachPosture(),
-                                       ab->getSubframes());
+          start_state_copy->attachBody(new moveit::core::AttachedBody(
+              ab->getAttachedLink(), ab->getName(), ab->getShapes(), ab->getFixedTransforms(), ab->getTouchLinks(),
+              ab->getDetachPosture()));  // TODO TODO TODO
         constraint_fn = boost::bind(&isGraspStateValid, scene.get(), collision_checking_verbose,
                                     only_check_self_collision, visual_tools_, _1, _2, _3);
       }
     }
 
-    double valid_lift_retreat_percentage = robot_state::CartesianInterpolator::computeCartesianPath(
+    double valid_lift_retreat_percentage = moveit::core::CartesianInterpolator::computeCartesianPath(
         start_state_copy.get(), grasp_candidate->grasp_data_->arm_jmg_,
         grasp_candidate->segmented_cartesian_traj_[LIFT], ik_tip_link, waypoints[LIFT], global_reference_frame,
-        robot_state::MaxEEFStep(max_step), robot_state::JumpThreshold(jump_threshold), constraint_fn,
+        moveit::core::MaxEEFStep(max_step), moveit::core::JumpThreshold(jump_threshold), constraint_fn,
         kinematics::KinematicsQueryOptions());
 
-    valid_lift_retreat_percentage *= robot_state::CartesianInterpolator::computeCartesianPath(
+    valid_lift_retreat_percentage *= moveit::core::CartesianInterpolator::computeCartesianPath(
         start_state_copy.get(), grasp_candidate->grasp_data_->arm_jmg_,
         grasp_candidate->segmented_cartesian_traj_[RETREAT], ik_tip_link, waypoints[RETREAT], global_reference_frame,
-        robot_state::MaxEEFStep(max_step), robot_state::JumpThreshold(jump_threshold), constraint_fn,
+        moveit::core::MaxEEFStep(max_step), moveit::core::JumpThreshold(jump_threshold), constraint_fn,
         kinematics::KinematicsQueryOptions());
 
-    ROS_DEBUG_STREAM_NAMED("grasp_planner.waypoints", "valid_approach_percentage: " << valid_approach_percentage
-                                                                                    << " \tvalid_lift_retreat_"
-                                                                                       "percentage: "
-                                                                                    << valid_lift_retreat_percentage);
+    RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_planner.waypoints"),
+                        "valid_approach_percentage: " << valid_approach_percentage
+                                                      << " \tvalid_lift_retreat_"
+                                                         "percentage: "
+                                                      << valid_lift_retreat_percentage);
 
     // The retreat has to work for the most part but doesn't need to be perfect
     double min_allowed_valid_lift_retreat_percentage = 0.90;
     if (valid_approach_percentage == 1 && valid_lift_retreat_percentage >= min_allowed_valid_lift_retreat_percentage)
     {
-      ROS_DEBUG_STREAM_NAMED("grasp_planner.waypoints", "Found valid cartesian path");
+      RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_planner.waypoints"), "Found valid cartesian path");
       valid_path_found = true;
       break;
     }
@@ -383,8 +390,8 @@ bool GraspPlanner::computeCartesianWaypointPath(GraspCandidatePtr& grasp_candida
 
   if (!valid_path_found)
   {
-    ROS_DEBUG_STREAM_NAMED("grasp_planner.waypoints",
-                           "UNABLE to find valid waypoint cartesian path after " << MAX_IK_ATTEMPTS << " attempts");
+    RCLCPP_DEBUG_STREAM(rclcpp::get_logger("grasp_planner.waypoints"),
+                        "UNABLE to find valid waypoint cartesian path after " << MAX_IK_ATTEMPTS << " attempts");
     return false;
   }
 
@@ -407,8 +414,8 @@ bool GraspPlanner::loadEnabledSettings()
   // Check if the map has been loaded yet
   if (!enabled_settings_loaded_)
   {
-    enabled_settings_loaded_ = true;
-    return rosparam_shortcuts::get(ENABLED_PARENT_NAME, nh_, ENABLED_SETTINGS_NAMESPACE, enabled_setting_);
+    // enabled_settings_loaded_ = true;
+    return true;  // rosparam_shortcuts::get(nh_, ENABLED_SETTINGS_NAMESPACE, enabled_setting_);
   }
   return true;
 }
@@ -416,18 +423,20 @@ bool GraspPlanner::loadEnabledSettings()
 bool GraspPlanner::isEnabled(const std::string& setting_name)
 {
   // Check if the map has been loaded yet. it is preferred if this is called manually
-  if (!enabled_settings_loaded_)
-    ROS_ERROR_STREAM_NAMED("rosparam_shortcuts", "Enabled settings are not yet loaded e.g. call loadEnabledSettings()");
+  // if (!enabled_settings_loaded_)
+  //   RCLCPP_ERROR_STREAM(rclcpp::get_logger("rosparam_shortcuts"), "Enabled settings are not yet loaded e.g. call
+  //   loadEnabledSettings()");
 
-  std::map<std::string, bool>::iterator it = enabled_setting_.find(setting_name);
-  if (it != enabled_setting_.end())
+  // std::map<std::string, bool>::iterator it = enabled_setting_.find(setting_name);
+  bool param;
+  if (rosparam_shortcuts::get(nh_, ENABLED_SETTINGS_NAMESPACE + "." + setting_name, param))
   {
     // Element found;
-    return it->second;
+    return param;
   }
-  ROS_ERROR_STREAM_NAMED("rosparam_shortcuts", "isEnabled() key '" << nh_.getNamespace() << "/"
-                                                                   << ENABLED_SETTINGS_NAMESPACE << "/" << setting_name
-                                                                   << "' does not exist on the parameter server");
+  RCLCPP_ERROR_STREAM(rclcpp::get_logger("rosparam_shortcuts"),
+                      "isEnabled() key '" << nh_->get_namespace() << "/" << ENABLED_SETTINGS_NAMESPACE << "/"
+                                          << setting_name << "' does not exist on the parameter server");
 
   return false;
 }

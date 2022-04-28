@@ -36,12 +36,13 @@
    Desc:   Creates a vizualization of all the poses used in the grasping pipeline
 */
 
-#include <rviz_visual_tools/rviz_visual_tools.h>
+#include <moveit_visual_tools/moveit_visual_tools.h>
 
 #include <moveit_grasps/two_finger_grasp_generator.h>
 #include <moveit_grasps/two_finger_grasp_data.h>
 #include <string>
 #include <vector>
+#include <rcpputils/asserts.hpp>
 
 namespace moveit_grasps
 {
@@ -59,17 +60,20 @@ class GraspPosesVisualizer
 {
 public:
   // Constructor
-  explicit GraspPosesVisualizer(bool verbose, const std::string name) : nh_("~"), name_(name)
+  explicit GraspPosesVisualizer(bool verbose, const std::string name) : name_(name)
   {
+    rclcpp::NodeOptions node_options;
+    node_options.automatically_declare_parameters_from_overrides(true);
+    nh_ = rclcpp::Node::make_shared("grasp_test", node_options);
     // get arm parameters
-    nh_.param("ee_group_name", ee_group_name_, std::string("hand"));
-    nh_.param("planning_group_name", planning_group_name_, std::string("panda_arm"));
+    nh_->get_parameter_or("ee_group_name", ee_group_name_, std::string("hand"));
+    nh_->get_parameter_or("planning_group_name", planning_group_name_, std::string("panda_arm"));
 
-    ROS_INFO_STREAM_NAMED("init", "End Effector: " << ee_group_name_);
-    ROS_INFO_STREAM_NAMED("init", "Planning Group: " << planning_group_name_);
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("init"), "End Effector: " << ee_group_name_);
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("init"), "Planning Group: " << planning_group_name_);
 
     // set up rviz
-    visual_tools_ = std::make_shared<moveit_visual_tools::MoveItVisualTools>("world", "/rviz_visual_tools");
+    visual_tools_ = std::make_shared<moveit_visual_tools::MoveItVisualTools>(nh_, "world", "/rviz_visual_tools");
     visual_tools_->loadMarkerPub();
     visual_tools_->loadRobotStatePub("/display_robot_state");
     visual_tools_->loadTrajectoryPub("/display_planned_path");
@@ -85,10 +89,10 @@ public:
 
     // Load grasp data
     grasp_data_ = std::make_shared<TwoFingerGraspData>(nh_, ee_group_name_, visual_tools_->getRobotModel());
-    ROS_ASSERT_MSG(grasp_data_->loadGraspData(nh_, ee_group_name_), "Failed to load Grasp Data parameters.");
+    rcpputils::assert_true(grasp_data_->loadGraspData(nh_, ee_group_name_), "Failed to load Grasp Data parameters.");
 
     // load grasp generator
-    grasp_generator_ = std::make_shared<moveit_grasps::TwoFingerGraspGenerator>(visual_tools_, verbose);
+    grasp_generator_ = std::make_shared<moveit_grasps::TwoFingerGraspGenerator>(nh_, visual_tools_, verbose);
 
     // initialize cuboid size
     depth_ = CUBOID_MIN_SIZE;
@@ -96,28 +100,28 @@ public:
     height_ = CUBOID_MIN_SIZE;
 
     // Seed random
-    srand(ros::Time::now().toSec());
+    srand(nh_->get_clock()->now().seconds());
 
-    ROS_INFO_STREAM_NAMED(name_, "\n************* \nStarting Vizualization"
+    RCLCPP_INFO_STREAM(rclcpp::get_logger(name_), "\n************* \nStarting Vizualization"
                                      << "\n*************");
 
-    ROS_INFO_STREAM_NAMED(name_, "generating random cuboid");
+    RCLCPP_INFO_STREAM(rclcpp::get_logger(name_), "generating random cuboid");
     generateRandomCuboid(cuboid_pose_, depth_, width_, height_);
 
     Eigen::Isometry3d display_pose;
     bool text = false;
-    rviz_visual_tools::scales text_size = rviz_visual_tools::MEDIUM;
+    rviz_visual_tools::Scales text_size = rviz_visual_tools::MEDIUM;
 
     // SHOW OBJECT POSE
-    ROS_INFO_STREAM_NAMED(name_, "Publishing random cube");
+    RCLCPP_INFO_STREAM(rclcpp::get_logger(name_), "Publishing random cube");
     visual_tools_->publishCuboid(cuboid_pose_, depth_, width_, height_, rviz_visual_tools::TRANSLUCENT_DARK);
     visual_tools_->publishAxis(cuboid_pose_, 0.05, 0.005);
-    geometry_msgs::Pose cuboid_text_pose(cuboid_pose_);
+    geometry_msgs::msg::Pose cuboid_text_pose(cuboid_pose_);
     cuboid_text_pose.position.z += 0.05;
     visual_tools_->publishText(cuboid_text_pose, "Object Pose", rviz_visual_tools::WHITE, text_size, text);
     visual_tools_->trigger();
 
-    ROS_INFO_STREAM_NAMED(name_, "Generating grasps");
+    RCLCPP_INFO_STREAM(rclcpp::get_logger(name_), "Generating grasps");
 
     grasp_candidates_.clear();
     moveit_grasps::TwoFingerGraspCandidateConfig grasp_generator_config =
@@ -131,7 +135,7 @@ public:
 
     // SHOW GRASP POSE
     visual_tools_->prompt("Press 'next' to show an example eef and grasp pose");
-    ROS_INFO_STREAM_NAMED(name_, "Showing the grasp pose");
+    RCLCPP_INFO_STREAM(rclcpp::get_logger(name_), "Showing the grasp pose");
     Eigen::Isometry3d eef_mount_grasp_pose =
         visual_tools_->convertPose(grasp_candidates_.front()->grasp_.grasp_pose.pose);
     visual_tools_->publishAxis(eef_mount_grasp_pose, 0.05, 0.005);
@@ -142,7 +146,7 @@ public:
     visual_tools_->trigger();
 
     // SHOW EE GRASP POSE
-    ROS_INFO_STREAM_NAMED(name_, "Showing tcp grasp pose");
+    RCLCPP_INFO_STREAM(rclcpp::get_logger(name_), "Showing tcp grasp pose");
     Eigen::Isometry3d tcp_grasp_pose = eef_mount_grasp_pose * grasp_data_->tcp_to_eef_mount_.inverse();
     visual_tools_->publishAxis(tcp_grasp_pose, 0.05, 0.005);
     Eigen::Isometry3d tcp_text_pose(tcp_grasp_pose);
@@ -154,7 +158,7 @@ public:
     visual_tools_->prompt("Press 'next' to visualize the grasp max and min depth");
 
     // SHOW grasp_max_depth
-    ROS_INFO_STREAM_NAMED(name_, "Showing grasp_max_depth");
+    RCLCPP_INFO_STREAM(rclcpp::get_logger(name_), "Showing grasp_max_depth");
     Eigen::Vector3d palm_vector = -tcp_grasp_pose.translation() + eef_mount_grasp_pose.translation();
     palm_vector.normalize();
     Eigen::Vector3d max_grasp_depth_point =
@@ -175,16 +179,17 @@ public:
     visual_tools_->publishAxisLabeled(grasp_waypoints[2], "lifted", rviz_visual_tools::SMALL);
     visual_tools_->publishAxisLabeled(grasp_waypoints[3], "retreat", rviz_visual_tools::SMALL);
     visual_tools_->trigger();
-    ros::Duration(0.5).sleep();
+    using namespace std::chrono_literals;
+    rclcpp::sleep_for(1s);
   }
 
-  void generateRandomCuboid(geometry_msgs::Pose& cuboid_pose, double& l, double& w, double& h)
+  void generateRandomCuboid(geometry_msgs::msg::Pose& cuboid_pose, double& l, double& w, double& h)
   {
     // Size
     l = rviz_visual_tools::RvizVisualTools::dRand(CUBOID_MIN_SIZE, CUBOID_MAX_SIZE);
     w = rviz_visual_tools::RvizVisualTools::dRand(CUBOID_MIN_SIZE, CUBOID_MAX_SIZE);
     h = rviz_visual_tools::RvizVisualTools::dRand(CUBOID_MIN_SIZE, CUBOID_MAX_SIZE);
-    ROS_INFO_STREAM_NAMED("random_cuboid", "Size = " << l << ", " << w << ", " << h);
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("random_cuboid"), "Size = " << l << ", " << w << ", " << h);
 
     // Position
     rviz_visual_tools::RandomPoseBounds pose_bounds(CUBOID_WORKSPACE_MIN_X, CUBOID_WORKSPACE_MAX_X,
@@ -193,22 +198,22 @@ public:
     // Orientation
     visual_tools_->generateRandomPose(cuboid_pose, pose_bounds);
 
-    ROS_INFO_STREAM_NAMED("random_cuboid", "Position = " << cuboid_pose.position.x << ", " << cuboid_pose.position.y
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("random_cuboid"), "Position = " << cuboid_pose.position.x << ", " << cuboid_pose.position.y
                                                          << ", " << cuboid_pose.position.z);
-    ROS_INFO_STREAM_NAMED("random_cuboid", "Quaternion = " << cuboid_pose.orientation.x << ", "
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("random_cuboid"), "Quaternion = " << cuboid_pose.orientation.x << ", "
                                                            << cuboid_pose.orientation.y << ", "
                                                            << cuboid_pose.orientation.z);
   }
 
 private:
-  ros::NodeHandle nh_;
+  rclcpp::Node::SharedPtr nh_;
   std::string name_;
 
   // cuboid dimensions
   double depth_;
   double width_;
   double height_;
-  geometry_msgs::Pose cuboid_pose_;
+  geometry_msgs::msg::Pose cuboid_pose_;
   moveit_grasps::TwoFingerGraspGeneratorPtr grasp_generator_;
   moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
   std::vector<GraspCandidatePtr> grasp_candidates_;
@@ -226,9 +231,9 @@ private:
 int main(int argc, char** argv)
 {
   const std::string name = "grasp_poses_visualizer_demo";
-  ros::init(argc, argv, name);
+  rclcpp::init(argc, argv);
 
-  ROS_INFO_STREAM_NAMED(name, "Grasp Poses Visualizer");
+  RCLCPP_INFO_STREAM(rclcpp::get_logger(name), "Grasp Poses Visualizer");
 
   bool verbose = false;
 

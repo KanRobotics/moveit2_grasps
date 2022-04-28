@@ -37,7 +37,7 @@
 */
 
 // ROS
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 // MoveIt
 #include <moveit/robot_state/robot_state.h>
@@ -66,8 +66,8 @@ static const std::string LOGNAME = "grasp_pipeline_demo";
 namespace
 {
 bool isStateValid(const planning_scene::PlanningScene* planning_scene,
-                  const moveit_visual_tools::MoveItVisualToolsPtr& visual_tools, robot_state::RobotState* robot_state,
-                  const robot_model::JointModelGroup* group, const double* ik_solution)
+                  const moveit_visual_tools::MoveItVisualToolsPtr& visual_tools, moveit::core::RobotState* robot_state,
+                  const moveit::core::JointModelGroup* group, const double* ik_solution)
 {
   robot_state->setJointGroupPositions(group, ik_solution);
   robot_state->update();
@@ -85,15 +85,18 @@ class GraspPipelineDemo
 {
 public:
   // Constructor
-  GraspPipelineDemo() : nh_("~")
+  GraspPipelineDemo()
   {
+    rclcpp::NodeOptions node_options;
+    node_options.automatically_declare_parameters_from_overrides(true);
+    nh_ = rclcpp::Node::make_shared("grasp_test", node_options);
     // Get arm info from param server
     const std::string parent_name = "grasp_filter_demo";  // for namespacing logging messages
-    rosparam_shortcuts::get(parent_name, nh_, "planning_group_name", planning_group_name_);
-    rosparam_shortcuts::get(parent_name, nh_, "ee_group_name", ee_group_name_);
+    rosparam_shortcuts::get(nh_, "planning_group_name", planning_group_name_);
+    rosparam_shortcuts::get(nh_, "ee_group_name", ee_group_name_);
 
-    ROS_INFO_STREAM_NAMED("test", "End Effector: " << ee_group_name_);
-    ROS_INFO_STREAM_NAMED("test", "Planning Group: " << planning_group_name_);
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("test"), "End Effector: " << ee_group_name_);
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("test"), "Planning Group: " << planning_group_name_);
 
     loadScene();
     setupGraspPipeline();
@@ -103,10 +106,10 @@ public:
   {
     // ---------------------------------------------------------------------------------------------
     // Load planning scene to share
-    planning_scene_monitor_ = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description");
+    planning_scene_monitor_ = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(nh_, "robot_description");
     if (!planning_scene_monitor_->getPlanningScene())
     {
-      ROS_ERROR_STREAM_NAMED(LOGNAME, "Planning scene not configured");
+      RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOGNAME), "Planning scene not configured");
       return;
     }
     planning_scene_monitor_->startPublishingPlanningScene(planning_scene_monitor::PlanningSceneMonitor::UPDATE_SCENE,
@@ -114,7 +117,7 @@ public:
     planning_scene_monitor_->getPlanningScene()->setName("grasping_planning_scene");
 
     robot_model_loader::RobotModelLoaderPtr robot_model_loader;
-    robot_model_loader = std::make_shared<robot_model_loader::RobotModelLoader>("robot_description");
+    robot_model_loader = std::make_shared<robot_model_loader::RobotModelLoader>(nh_, "robot_description");
 
     // Load the robot model
     robot_model_ = robot_model_loader->getModel();
@@ -123,7 +126,7 @@ public:
     // ---------------------------------------------------------------------------------------------
     // Load the Robot Viz Tools for publishing to Rviz
     visual_tools_ = std::make_shared<moveit_visual_tools::MoveItVisualTools>(
-        robot_model_->getModelFrame(), "/rviz_visual_tools", planning_scene_monitor_);
+        nh_, robot_model_->getModelFrame(), "/rviz_visual_tools", planning_scene_monitor_);
     visual_tools_->loadMarkerPub();
     visual_tools_->loadRobotStatePub("/display_robot_state");
     visual_tools_->loadTrajectoryPub("/display_planned_path");
@@ -147,13 +150,13 @@ public:
         std::make_shared<moveit_grasps::TwoFingerGraspData>(nh_, ee_group_name_, visual_tools_->getRobotModel());
     if (!grasp_data_->loadGraspData(nh_, ee_group_name_))
     {
-      ROS_ERROR_STREAM_NAMED(LOGNAME, "Failed to load Grasp Data parameters.");
+      RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOGNAME), "Failed to load Grasp Data parameters.");
       exit(-1);
     }
 
     // ---------------------------------------------------------------------------------------------
     // Load grasp generator
-    grasp_generator_ = std::make_shared<moveit_grasps::TwoFingerGraspGenerator>(visual_tools_);
+    grasp_generator_ = std::make_shared<moveit_grasps::TwoFingerGraspGenerator>(nh_, visual_tools_);
 
     // Set the ideal grasp orientation for scoring
     std::vector<double> ideal_grasp_rpy = { 3.14, 0.0, 0.0 };
@@ -176,11 +179,11 @@ public:
     // ---------------------------------------------------------------------------------------------
     // Load grasp filter
     grasp_filter_ =
-        std::make_shared<moveit_grasps::TwoFingerGraspFilter>(visual_tools_->getSharedRobotState(), visual_tools_);
+        std::make_shared<moveit_grasps::TwoFingerGraspFilter>(nh_, visual_tools_->getSharedRobotState(), visual_tools_);
 
     // ---------------------------------------------------------------------------------------------
     // Load grasp planner for approach, lift and retreat planning
-    grasp_planner_ = std::make_shared<moveit_grasps::GraspPlanner>(visual_tools_);
+    grasp_planner_ = std::make_shared<moveit_grasps::GraspPlanner>(nh_, visual_tools_);
 
     // MoveIt Grasps allows for a manual breakpoint debugging tool to be optionally passed in
     grasp_planner_->setWaitForNextStepCallback(boost::bind(&waitForNextStep, visual_tools_, _1));
@@ -195,14 +198,14 @@ public:
   {
     // -----------------------------------
     // Generate random object to grasp
-    geometry_msgs::Pose object_pose;
+    geometry_msgs::msg::Pose object_pose;
     double object_x_depth;
     double object_y_width;
     double object_z_height;
     std::string object_name;
     if (!generateRandomCuboid(object_name, object_pose, object_x_depth, object_y_width, object_z_height))
     {
-      ROS_ERROR_NAMED(LOGNAME, "Failed to add random cuboid ot planning scene");
+      RCLCPP_ERROR(rclcpp::get_logger(LOGNAME), "Failed to add random cuboid ot planning scene");
       return false;
     }
 
@@ -223,19 +226,20 @@ public:
     if (!grasp_generator_->generateGrasps(visual_tools_->convertPose(object_pose), object_x_depth, object_y_width,
                                           object_z_height, grasp_data_, grasp_candidates))
     {
-      ROS_ERROR_NAMED(LOGNAME, "Grasp generator failed to generate any valid grasps");
+      RCLCPP_ERROR(rclcpp::get_logger(LOGNAME), "Grasp generator failed to generate any valid grasps");
       return false;
     }
 
     // --------------------------------------------
     // Generating a seed state for filtering grasps
-    robot_state::RobotStatePtr seed_state =
-        std::make_shared<robot_state::RobotState>(*visual_tools_->getSharedRobotState());
+    moveit::core::RobotStatePtr seed_state =
+        std::make_shared<moveit::core::RobotState>(*visual_tools_->getSharedRobotState());
     Eigen::Isometry3d eef_mount_grasp_pose =
         visual_tools_->convertPose(object_pose) * grasp_data_->tcp_to_eef_mount_.inverse();
     if (!getIKSolution(arm_jmg_, eef_mount_grasp_pose, *seed_state, grasp_data_->parent_link_->getName()))
     {
-      ROS_WARN_STREAM_NAMED(LOGNAME, "The ideal seed state is not reachable. Using start state as seed.");
+      RCLCPP_WARN_STREAM(rclcpp::get_logger(LOGNAME),
+                         "The ideal seed state is not reachable. Using start state as seed.");
     }
 
     // --------------------------------------------
@@ -245,22 +249,22 @@ public:
     if (!grasp_filter_->filterGrasps(grasp_candidates, planning_scene_monitor_, arm_jmg_, seed_state, filter_pregrasps,
                                      object_name))
     {
-      ROS_ERROR_STREAM_NAMED(LOGNAME, "Filter grasps failed");
+      RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOGNAME), "Filter grasps failed");
       return false;
     }
     if (!grasp_filter_->removeInvalidAndFilter(grasp_candidates))
     {
-      ROS_WARN_NAMED(LOGNAME, "Grasp filtering removed all grasps");
+      RCLCPP_WARN(rclcpp::get_logger(LOGNAME), "Grasp filtering removed all grasps");
       return false;
     }
-    ROS_INFO_STREAM_NAMED(LOGNAME, "" << grasp_candidates.size() << " remain after filtering");
+    RCLCPP_INFO_STREAM(rclcpp::get_logger(LOGNAME), "" << grasp_candidates.size() << " remain after filtering");
 
     // Plan free-space approach, cartesian approach, lift and retreat trajectories
     moveit_grasps::GraspCandidatePtr selected_grasp_candidate;
-    moveit_msgs::MotionPlanResponse pre_approach_plan;
+    moveit_msgs::msg::MotionPlanResponse pre_approach_plan;
     if (!planFullGrasp(grasp_candidates, selected_grasp_candidate, pre_approach_plan, object_name))
     {
-      ROS_ERROR_STREAM_NAMED(LOGNAME, "Failed to plan grasp motions");
+      RCLCPP_ERROR_STREAM(rclcpp::get_logger(LOGNAME), "Failed to plan grasp motions");
       return false;
     }
 
@@ -270,7 +274,7 @@ public:
   }
 
   void visualizePick(const moveit_grasps::GraspCandidatePtr& valid_grasp_candidate,
-                     const moveit_msgs::MotionPlanResponse& pre_approach_plan)
+                     const moveit_msgs::msg::MotionPlanResponse& pre_approach_plan)
   {
     EigenSTL::vector_Isometry3d waypoints;
     moveit_grasps::GraspGenerator::getGraspWaypoints(valid_grasp_candidate, waypoints);
@@ -284,12 +288,12 @@ public:
 
     // Get the pre and post grasp states
     visual_tools_->prompt("pre_grasp");
-    robot_state::RobotStatePtr pre_grasp_state =
-        std::make_shared<robot_state::RobotState>(*visual_tools_->getSharedRobotState());
+    moveit::core::RobotStatePtr pre_grasp_state =
+        std::make_shared<moveit::core::RobotState>(*visual_tools_->getSharedRobotState());
     valid_grasp_candidate->getPreGraspState(pre_grasp_state);
     visual_tools_->publishRobotState(pre_grasp_state, rviz_visual_tools::ORANGE);
-    robot_state::RobotStatePtr grasp_state =
-        std::make_shared<robot_state::RobotState>(*visual_tools_->getSharedRobotState());
+    moveit::core::RobotStatePtr grasp_state =
+        std::make_shared<moveit::core::RobotState>(*visual_tools_->getSharedRobotState());
     if (valid_grasp_candidate->getGraspStateClosed(grasp_state))
     {
       visual_tools_->prompt("grasp");
@@ -316,32 +320,33 @@ public:
 
     bool wait_for_animation = true;
     visual_tools_->publishTrajectoryPath(pre_approach_plan.trajectory, pre_grasp_state, wait_for_animation);
-    ros::Duration(0.25).sleep();
+    using namespace std::chrono_literals;
+    rclcpp::sleep_for(1s);
     if (valid_grasp_candidate->segmented_cartesian_traj_.size() > moveit_grasps::APPROACH)
       visual_tools_->publishTrajectoryPath(valid_grasp_candidate->segmented_cartesian_traj_[moveit_grasps::APPROACH],
                                            valid_grasp_candidate->grasp_data_->arm_jmg_, wait_for_animation);
-    ros::Duration(0.25).sleep();
+    rclcpp::sleep_for(1s);
 
     if (valid_grasp_candidate->segmented_cartesian_traj_.size() > moveit_grasps::LIFT)
       visual_tools_->publishTrajectoryPath(valid_grasp_candidate->segmented_cartesian_traj_[moveit_grasps::LIFT],
                                            valid_grasp_candidate->grasp_data_->arm_jmg_, wait_for_animation);
-    ros::Duration(0.25).sleep();
+    rclcpp::sleep_for(1s);
 
     if (valid_grasp_candidate->segmented_cartesian_traj_.size() > moveit_grasps::RETREAT)
       visual_tools_->publishTrajectoryPath(valid_grasp_candidate->segmented_cartesian_traj_[moveit_grasps::RETREAT],
                                            valid_grasp_candidate->grasp_data_->arm_jmg_, wait_for_animation);
-    ros::Duration(0.25).sleep();
+    rclcpp::sleep_for(1s);
   }
 
   bool planFullGrasp(std::vector<moveit_grasps::GraspCandidatePtr>& grasp_candidates,
                      moveit_grasps::GraspCandidatePtr& valid_grasp_candidate,
-                     moveit_msgs::MotionPlanResponse& pre_approach_plan, const std::string& object_name)
+                     moveit_msgs::msg::MotionPlanResponse& pre_approach_plan, const std::string& object_name)
   {
     moveit::core::RobotStatePtr current_state;
     {
       boost::scoped_ptr<planning_scene_monitor::LockedPlanningSceneRW> ls(
           new planning_scene_monitor::LockedPlanningSceneRW(planning_scene_monitor_));
-      current_state = std::make_shared<robot_state::RobotState>((*ls)->getCurrentState());
+      current_state = std::make_shared<moveit::core::RobotState>((*ls)->getCurrentState());
     }
 
     bool success = false;
@@ -352,15 +357,15 @@ public:
       if (!grasp_planner_->planApproachLiftRetreat(valid_grasp_candidate, current_state, planning_scene_monitor_, false,
                                                    object_name))
       {
-        ROS_INFO_NAMED(LOGNAME, "failed to plan approach lift retreat");
+        RCLCPP_INFO(rclcpp::get_logger(LOGNAME), "failed to plan approach lift retreat");
         continue;
       }
 
-      robot_state::RobotStatePtr pre_grasp_state =
+      moveit::core::RobotStatePtr pre_grasp_state =
           valid_grasp_candidate->segmented_cartesian_traj_[moveit_grasps::APPROACH].front();
       if (!planPreApproach(*pre_grasp_state, pre_approach_plan))
       {
-        ROS_WARN_NAMED(LOGNAME, "failed to plan to pregrasp_state");
+        RCLCPP_WARN(rclcpp::get_logger(LOGNAME), "failed to plan to pregrasp_state");
         continue;
       }
 
@@ -370,7 +375,8 @@ public:
     return success;
   }
 
-  bool planPreApproach(const robot_state::RobotState& goal_state, moveit_msgs::MotionPlanResponse& pre_approach_plan)
+  bool planPreApproach(const moveit::core::RobotState& goal_state,
+                       moveit_msgs::msg::MotionPlanResponse& pre_approach_plan)
   {
     planning_interface::MotionPlanRequest req;
     planning_interface::MotionPlanResponse res;
@@ -381,7 +387,7 @@ public:
     req.group_name = arm_jmg_->getName();
     req.num_planning_attempts = 5;
     req.allowed_planning_time = 1.5;
-    moveit_msgs::Constraints goal =
+    moveit_msgs::msg::Constraints goal =
         kinematic_constraints::constructGoalConstraints(goal_state, arm_jmg_, tolerance_below, tolerance_above);
 
     req.goal_constraints.push_back(goal);
@@ -391,7 +397,7 @@ public:
     // ---------------------------------
     // Change the robot current state
     // NOTE: We have to do this since Panda start configuration is in self collision.
-    robot_state::RobotState rs = (*ls)->getCurrentState();
+    moveit::core::RobotState rs = (*ls)->getCurrentState();
     std::vector<double> starting_joint_values = { 0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785 };
     std::vector<std::string> joint_names = { "panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4",
                                              "panda_joint5", "panda_joint6", "panda_joint7" };
@@ -401,13 +407,13 @@ public:
       rs.setJointPositions(joint_names[i], &starting_joint_values[i]);
     }
     rs.update();
-    robot_state::robotStateToRobotStateMsg(rs, req.start_state);
+    moveit::core::robotStateToRobotStateMsg(rs, req.start_state);
     // ---------------------------
 
     planning_pipeline_->generatePlan(*ls, req, res);
     if (res.error_code_.val != res.error_code_.SUCCESS)
     {
-      ROS_INFO_NAMED(LOGNAME, "Failed to plan approach successfully");
+      RCLCPP_INFO(rclcpp::get_logger(LOGNAME), "Failed to plan approach successfully");
       return false;
     }
 
@@ -416,7 +422,7 @@ public:
   }
 
   bool getIKSolution(const moveit::core::JointModelGroup* arm_jmg, const Eigen::Isometry3d& target_pose,
-                     robot_state::RobotState& solution, const std::string& link_name)
+                     moveit::core::RobotState& solution, const std::string& link_name)
   {
     boost::scoped_ptr<planning_scene_monitor::LockedPlanningSceneRW> ls(
         new planning_scene_monitor::LockedPlanningSceneRW(planning_scene_monitor_));
@@ -433,7 +439,7 @@ public:
     return solution.setFromIK(arm_jmg, target_pose, link_name, timeout, constraint_fn);
   }
 
-  bool generateRandomCuboid(std::string& object_name, geometry_msgs::Pose& object_pose, double& x_depth,
+  bool generateRandomCuboid(std::string& object_name, geometry_msgs::msg::Pose& object_pose, double& x_depth,
                             double& y_width, double& z_height)
   {
     // Generate random cuboid
@@ -457,18 +463,19 @@ public:
 
     bool success = true;
     double timeout = 5;  // seconds
-    ros::Rate rate(100);
+    rclcpp::Time start_time = nh_->get_clock()->now();
     while (success && !planning_scene_monitor_->getPlanningScene()->knowsFrameTransform(object_name))
     {
-      rate.sleep();
-      success = rate.cycleTime().toSec() < timeout;
+      using namespace std::chrono_literals;
+      rclcpp::sleep_for(10ms);
+      success = (nh_->get_clock()->now() - start_time).seconds() < timeout;
     }
     return success;
   }
 
 private:
   // A shared node handle
-  ros::NodeHandle nh_;
+  rclcpp::Node::SharedPtr nh_;
 
   // Tool for visualizing things in Rviz
   moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
@@ -489,10 +496,10 @@ private:
   planning_scene_monitor::PlanningSceneMonitorPtr planning_scene_monitor_;
 
   // Arm
-  const robot_model::JointModelGroup* arm_jmg_;
+  const moveit::core::JointModelGroup* arm_jmg_;
 
   // Robot
-  robot_model::RobotModelPtr robot_model_;
+  moveit::core::RobotModelPtr robot_model_;
 
   // All the motion planning components
   planning_pipeline::PlanningPipelinePtr planning_pipeline_;
@@ -509,29 +516,33 @@ int main(int argc, char* argv[])
 {
   int num_tests = 1;
 
-  ros::init(argc, argv, "grasp_filter_demo");
+  rclcpp::init(argc, argv);
+  rclcpp::NodeOptions node_options;
+  node_options.automatically_declare_parameters_from_overrides(true);
+  auto grasp_generator_demo_node = rclcpp::Node::make_shared("grasp_generator_demo", node_options);
 
-  // Allow the action server to recieve and send ros messages
-  ros::AsyncSpinner spinner(2);
-  spinner.start();
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(grasp_generator_demo_node);
+  std::thread([&executor]() { executor.spin(); }).detach();
 
   // Seed random
-  srand(ros::Time::now().toSec());
+  srand(grasp_generator_demo_node->get_clock()->now().seconds());
 
   // Benchmark time
-  ros::Time start_time;
-  start_time = ros::Time::now();
+  rclcpp::Time start_time;
+  start_time = grasp_generator_demo_node->get_clock()->now();
 
   // Run Tests
   moveit_grasps_demo::GraspPipelineDemo tester;
   tester.demoRandomGrasp();
 
   // Benchmark time
-  double duration = (ros::Time::now() - start_time).toSec();
-  ROS_INFO_STREAM_NAMED("grasp_filter_demo", "Total time: " << duration << "\t" << num_tests);
+  double duration = (grasp_generator_demo_node->get_clock()->now() - start_time).seconds();
+  RCLCPP_INFO_STREAM(rclcpp::get_logger("grasp_filter_demo"), "Total time: " << duration << "\t" << num_tests);
   std::cout << "Total time: " << duration << "\t" << num_tests << std::endl;
 
-  ros::Duration(1.0).sleep();  // let rviz markers finish publishing
+  using namespace std::chrono_literals;
+  rclcpp::sleep_for(1s);  // let rviz markers finish publishing
 
   return 0;
 }

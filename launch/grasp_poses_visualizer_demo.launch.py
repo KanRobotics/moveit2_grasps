@@ -48,11 +48,6 @@ def generate_launch_description():
     gripper = {"gripper": "two_finger"}
     ee_group_name = {"ee_group_name": "hand"}
     planning_group_name = {"planning_group_name": "panda_arm"}
-    statistics_verbose = {"moveit_grasps/filter/statistics_verbose": True}
-    show_filtered_grasps = {"moveit_grasps/filter/show_filtered_grasps": True}
-    show_cutting_planes = {"moveit_grasps/filter/show_cutting_planes": True}
-    show_grasp_filter_collision_if_failed = {"moveit_grasps/filter/show_grasp_filter_collision_if_failed": True}
-    show_filtered_arm_solutions = {"moveit_grasps/filter/show_filtered_arm_solutions": True}
     panda_grasp_data_yaml = load_yaml(
         "moveit_grasps", "config_robot/panda_grasp_data.yaml"
     )
@@ -64,7 +59,7 @@ def generate_launch_description():
     grasps_demo = Node(
         name="moveit_generator_demo",
         package="moveit_grasps",
-        executable="moveit_grasps_grasp_filter_demo",
+        executable="moveit_grasps_grasp_poses_visualizer_demo",
         output="screen",
         parameters=[
             robot_description,
@@ -73,11 +68,6 @@ def generate_launch_description():
             gripper,
             ee_group_name,
             planning_group_name,
-            statistics_verbose,
-            show_filtered_grasps,
-            show_cutting_planes,
-            show_grasp_filter_collision_if_failed,
-            show_filtered_arm_solutions,
             panda_grasp_data_yaml,
             moveit_grasps_config_yaml,
         ],
