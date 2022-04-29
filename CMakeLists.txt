@@ -70,36 +70,38 @@ include_directories(
   include
 )
 
-# # Grasp Library
-# add_library(${PROJECT_NAME}
-#   src/grasp_candidate.cpp
-#   src/grasp_data.cpp
-#   src/grasp_generator.cpp
-#   src/grasp_scorer.cpp
-#   src/suction_grasp_candidate.cpp
-#   src/suction_grasp_data.cpp
-#   src/suction_grasp_generator.cpp
-#   src/suction_grasp_scorer.cpp
-#   src/two_finger_grasp_data.cpp
-#   src/two_finger_grasp_generator.cpp
-#   src/two_finger_grasp_scorer.cpp
-# )
-# target_link_libraries(${PROJECT_NAME}
-#   ${catkin_LIBRARIES} ${Boost_LIBRARIES}
-# )
+# Grasp Library
+add_library(${PROJECT_NAME} SHARED
+  src/grasp_candidate.cpp
+  src/grasp_data.cpp
+  src/grasp_generator.cpp
+  src/grasp_scorer.cpp
+  # src/suction_grasp_candidate.cpp
+  # src/suction_grasp_data.cpp
+  # src/suction_grasp_generator.cpp
+  # src/suction_grasp_scorer.cpp
+  src/two_finger_grasp_data.cpp
+  src/two_finger_grasp_generator.cpp
+  src/two_finger_grasp_scorer.cpp
+)
+ament_target_dependencies(${PROJECT_NAME}
+    ${THIS_PACKAGE_INCLUDE_DEPENDS} Boost)
 
-# # Grasp Filter Library
-# add_library(${PROJECT_NAME}_filter
-#   src/grasp_filter.cpp
-#   src/suction_grasp_filter.cpp
-#   src/two_finger_grasp_filter.cpp
-#   src/grasp_planner.cpp
-# )
-# target_link_libraries(${PROJECT_NAME}_filter
-#   ${PROJECT_NAME}
-#   ${catkin_LIBRARIES}
-#   ${Boost_LIBRARIES}
-# )
+# Grasp Filter Library
+add_library(${PROJECT_NAME}_filter SHARED
+  src/grasp_candidate.cpp
+  src/grasp_data.cpp
+  src/grasp_generator.cpp
+  src/grasp_scorer.cpp
+  src/grasp_filter.cpp
+  src/two_finger_grasp_data.cpp
+  src/two_finger_grasp_generator.cpp
+  src/two_finger_grasp_scorer.cpp
+  src/two_finger_grasp_filter.cpp
+  src/grasp_planner.cpp
+)
+ament_target_dependencies(${PROJECT_NAME}_filter
+    ${THIS_PACKAGE_INCLUDE_DEPENDS} Boost)
 # set_target_properties(${PROJECT_NAME}_filter PROPERTIES COMPILE_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}") # for threading
 # set_target_properties(${PROJECT_NAME}_filter PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
 
@@ -176,11 +178,12 @@ ament_target_dependencies(${PROJECT_NAME}_grasp_pipeline_demo
 ## INSTALL ##
 #############
 
-# # Install libraries
-# install(TARGETS
-#   ${PROJECT_NAME}
-#   ${PROJECT_NAME}_filter
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
+# Install libraries
+install(TARGETS
+  ${PROJECT_NAME}
+  ${PROJECT_NAME}_filter
+  LIBRARY DESTINATION lib
+  INCLUDES DESTINATION include)
 
 # Install header files
 install(DIRECTORY include/${PROJECT_NAME}

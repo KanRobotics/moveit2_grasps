@@ -4,16 +4,17 @@
   <version>2.0.0</version>
   <description>
     A basic grasp generator for objects such as blocks or cylinders for use with the MoveIt! pick and place pipeline.
-    Does not consider friction cones or other dynamics.
+    Does not consider friction cones or other dynamics. Ported for ROS2 by Andrey Kvak
   </description>
   <maintainer email="davetcoleman@gmail.com">Dave Coleman</maintainer>
   <maintainer email="mcevoy.andy@gmail.com">Andy McEvoy</maintainer>
+  <maintainer email="andreykvak.g3@gmail.com">Andrey Kvak</maintainer>
 
   <license>BSD</license>
 
-  <url type="website">https://github.com/PickNikRobotics/moveit_grasps/</url>
-  <url type="bugtracker">https://github.com/PickNikRobotics/moveit_grasps/issues</url>
-  <url type="repository">https://github.com/PickNikRobotics/moveit_grasps</url>
+  <url type="website">https://github.com/KantRobotics/moveit2_grasps/</url>
+  <url type="bugtracker">https://github.com/KantRobotics/moveit2_grasps/issues</url>
+  <url type="repository">https://github.com/KantRobotics/moveit2_grasps</url>
 
   <author email="davetcoleman@gmail.com">Dave Coleman</author>
   <author email="mcevoy.andy@gmail.com">Andy McEvoy</author>
@@ -31,7 +32,6 @@
   <build_depend>moveit_visual_tools</build_depend>
   <build_depend>rosparam_shortcuts</build_depend>
   <build_depend>rcpputils</build_depend>
-  <!-- <build_depend>message_generation</build_depend> -->
   <build_depend>moveit_msgs</build_depend>
   <build_depend>geometry_msgs</build_depend>
 
@@ -39,7 +39,6 @@
   <exec_depend>trajectory_msgs</exec_depend>
   <exec_depend>moveit_msgs</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
-  <!-- <exec_depend>message_runtime</exec_depend> -->
   <exec_depend>moveit_visual_tools</exec_depend>
   <exec_depend>rosparam_shortcuts</exec_depend>
 
